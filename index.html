@@ -44,6 +44,7 @@
         <div class="hero-sub" id="hero-sub">Servicio Meteorológico Nacional</div>
       </div>
       <div id="lista-alertas"></div>
+      <p class="fuente" id="nota-corto" style="display:none">Los avisos a muy corto plazo del SMN (tormentas que se forman en la próxima hora) no están disponibles en este momento. Podés verlos en <a href="https://www.smn.gob.ar/alertas" target="_blank" rel="noopener">smn.gob.ar/alertas</a>.</p>
       <p class="fuente">Fuente: <a href="https://www.smn.gob.ar/alertas" target="_blank" rel="noopener">SMN – Sistema de Alerta Temprana</a> (feed CAP oficial) · Actualizado <span id="hora-oficial">–</span></p>
     </section>
 
@@ -71,7 +72,7 @@
       <div class="card-dark map-card">
         <div id="mapa" aria-label="Mapa de localidades"></div>
         <div class="leyenda">
-          <span><i class="dot verde"></i>Tranquilo</span><span><i class="dot amarillo"></i>Posible</span><span><i class="dot naranja"></i>Probable</span><span><i class="dot rojo"></i>Probable y fuerte</span>
+          <span><i class="dot verde"></i>Sin tormentas</span><span><i class="dot amarillo"></i>Posible</span><span><i class="dot naranja"></i>Probable</span><span><i class="dot rojo"></i>Probable y fuerte</span>
         </div>
       </div>
 
@@ -90,8 +91,8 @@
         </ul>
         <p>Cada modelo puede equivocarse. Por eso los comparamos: <b>cuantos más coinciden, más confiable es el pronóstico</b>.</p>
         <div class="niveles">
-          <div class="nivel"><span class="pill-demo verde">Tranquilo</span><span>Ningún modelo ve tormentas, ráfagas fuertes ni lluvia fuerte.</span></div>
-          <div class="nivel"><span class="pill-demo amarillo">Posible</span><span>Solo 1 de los 3 modelos lo ve. Puede pasar, pero hay poca coincidencia.</span></div>
+          <div class="nivel"><span class="pill-demo verde">Sin tormentas</span><span>Ningún modelo ve tormentas, ráfagas fuertes ni lluvia fuerte. Puede haber lluvia común.</span></div>
+          <div class="nivel"><span class="pill-demo amarillo">Posible</span><span>Solo 1 de los 3 modelos ve tormenta, ráfagas o lluvia fuerte, o hay mucha energía para tormentas aunque no se vean formarse.</span></div>
           <div class="nivel"><span class="pill-demo naranja">Probable</span><span>2 o 3 modelos coinciden en tormenta, ráfagas de 70 km/h o más, o lluvia fuerte.</span></div>
           <div class="nivel"><span class="pill-demo rojo">Probable y fuerte</span><span>2 o 3 modelos coinciden en tormenta con posible granizo, o en ráfagas de 90 km/h o más.</span></div>
         </div>
@@ -103,7 +104,7 @@
             <li><b>Granizo posible:</b> el modelo pronostica tormenta con granizo, o la energía supera 2500 J/kg durante una tormenta.</li>
             <li><b>Ráfagas fuertes:</b> 70 km/h o más (muy fuertes: 90 km/h o más).</li>
             <li><b>Lluvia fuerte:</b> 10 mm o más en una hora, o 40 mm o más en el período elegido.</li>
-            <li><b>CAPE:</b> la energía disponible para que se formen tormentas. Más energía, tormentas potencialmente más fuertes.</li>
+            <li><b>Energía (CAPE):</b> la energía disponible para que se formen tormentas. Desde 1500 J/kg en 2 modelos, o desde 2500 J/kg en al menos 1, la tarjeta marca como mínimo “Posible”, aunque los modelos no vean la tormenta.</li>
           </ul>
           <p>Esto es un pronóstico, no una alerta. Ante cualquier duda, manda lo oficial del SMN y de Defensa Civil.</p>
         </details>
@@ -119,11 +120,9 @@
           <button class="tab activo" data-sat="13">Infrarrojo</button>
           <button class="tab" data-sat="GEOCOLOR">Color</button>
         </div>
-        <a id="sat-link" href="https://www.star.nesdis.noaa.gov/GOES/sector.php?sat=G19&sector=ssa" target="_blank" rel="noopener">
-          <img id="sat-img" alt="Imagen satelital GOES-19 del sur de Sudamérica" loading="lazy">
-        </a>
+        <img id="sat-img" alt="Imagen satelital GOES-19 del sur de Sudamérica" loading="lazy" title="Tocá para ampliar">
         <div class="desc" id="sat-desc" aria-live="polite"></div>
-        <p class="card-note">Imagen del satélite GOES-19, renovada cada 10 minutos. Catamarca está en el centro-oeste de la imagen, al norte de La Rioja. Tocá la imagen para verla más grande.</p>
+        <p class="card-note">Imagen del satélite GOES-19, renovada cada 10 minutos. Catamarca está en el centro-oeste de la imagen, al norte de La Rioja. Tocá la imagen para verla en pantalla completa; tocala de nuevo para acercar.</p>
       </div>
       <p class="fuente">Fuente: <a href="https://www.star.nesdis.noaa.gov/GOES/sector.php?sat=G19&sector=ssa" target="_blank" rel="noopener">NOAA / NESDIS / STAR – GOES-19</a> · GeoColor: CIRA/NOAA</p>
     </section>
@@ -159,6 +158,12 @@
       <p>Cata del Clima es un proyecto del <b>Instituto Cecilia Grierson</b> de <b>La Carrillo</b>, asociación civil sin fines de lucro de Catamarca. Lo hicimos para que cualquier persona pueda acceder de forma rápida y confiable a la información del tiempo y a las alertas oficiales.</p>
       <p class="fuente">Cata del Clima · Instituto Cecilia Grierson | La Carrillo · Datos: SMN, Open-Meteo (ECMWF, NOAA, DWD), NOAA GOES, Windy, Blitzortung.</p>
     </section>
+  </div>
+
+  <div id="visor" class="visor" hidden>
+    <button id="visor-cerrar" class="visor-cerrar" aria-label="Cerrar">✕</button>
+    <div class="visor-scroll"><img id="visor-img" alt="Imagen satelital ampliada"></div>
+    <p class="visor-hint">Tocá la imagen para acercar o alejar · ✕ para cerrar</p>
   </div>
 
   <nav class="bottom-nav" aria-label="Secciones">

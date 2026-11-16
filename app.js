@@ -53,8 +53,9 @@ async function cargarOficial() {
     const avisos = d.avisosCortoPlazo || [];
 
     const feedOk = !d.estado || d.estado.alertas === "ok";
-    const avisoCorto = d.estado && d.estado.cortoPlazo === "error"
-      ? " <span style='opacity:.75'>(No se pudieron consultar los avisos a corto plazo.)</span>" : "";
+    const avisoCorto = "";
+    const notaCorto = document.getElementById("nota-corto");
+    if (notaCorto) notaCorto.style.display = d.estado && d.estado.cortoPlazo === "error" ? "" : "none";
     if (!alertas.length && !avisos.length) {
       if (!feedOk) {
         setHero("error", "Sin conexión con el SMN", "Consultá en <a href='https://www.smn.gob.ar/alertas' target='_blank' rel='noopener'>smn.gob.ar/alertas</a>");
@@ -156,6 +157,8 @@ function analizar(loc, horas) {
   const vie = cuenta((x) => (x.rafMax ?? 0) >= 70);
   const vieF = cuenta((x) => (x.rafMax ?? 0) >= 90);
   const llu = cuenta((x) => x.lluviaMax >= 10 || x.lluviaTot >= 40);
+  const ene = cuenta((x) => (x.capeMax ?? 0) >= 1500);   // energía para tormentas
+  const eneF = cuenta((x) => (x.capeMax ?? 0) >= 2500);  // energía muy alta
   const max = (k) => Math.max(...porModelo.map((x) => x[k] ?? 0));
   const primeras = porModelo.map((x) => x.primeraTormenta).filter(Boolean).sort();
 
@@ -166,11 +169,11 @@ function analizar(loc, horas) {
   //  rojo    = 2 o 3 coinciden en tormenta Y además 2+ ven granizo o ráfagas ≥90 (probable y fuerte)
   const mayoria = Math.min(2, n);
   let nivel = "verde";
-  if (tor >= 1 || vie >= 1 || llu >= 1) nivel = "amarillo";
+  if (tor >= 1 || vie >= 1 || llu >= 1 || eneF >= 1 || ene >= mayoria) nivel = "amarillo";
   if (tor >= mayoria || vie >= mayoria || llu >= mayoria) nivel = "naranja";
   if ((tor >= mayoria && gra >= mayoria) || vieF >= mayoria) nivel = "rojo";
 
-  return { n, tor, gra, vie, vieF, llu, nivel, porModelo,
+  return { n, tor, gra, vie, vieF, llu, ene, eneF, nivel, porModelo,
     lluviaMax: max("lluviaTot"), rafMax: max("rafMax"), capeMax: max("capeMax"),
     primera: primeras[0] || null };
 }
@@ -185,20 +188,24 @@ function offsetTZ(loc) {
 
 const lista = (arr) => arr.length > 1 ? arr.slice(0, -1).join(", ") + " y " + arr[arr.length - 1] : arr.join("");
 function frase(a, horas) {
-  const tor = a.tor, n = a.n;
-  if (a.nivel === "verde") return `Ningún modelo ve tormentas, viento ni lluvia fuerte en las próximas ${horas} h.`;
+  const n = a.n;
+  if (a.nivel === "verde") {
+    const lluvia = a.lluviaMax >= 1 ? ` Puede llover (hasta ${a.lluviaMax.toFixed(0)} mm en total), sin llegar a lluvia fuerte.` : "";
+    return `Ningún modelo ve tormentas ni ráfagas fuertes en las próximas ${horas} h, y la energía para tormentas es baja.${lluvia}`;
+  }
   if (a.nivel === "amarillo") {
     const que = [a.tor && "tormenta", a.vie && "ráfagas fuertes", a.llu && "lluvia fuerte"].filter(Boolean);
-    return `Solo 1 de ${n} modelos ve ${lista(que)}. Puede pasar, pero hay poca coincidencia.`;
+    if (que.length) return `Solo 1 de ${n} modelos ve ${lista(que)}. Puede pasar, pero hay poca coincidencia.`;
+    return `Hay ${a.eneF ? "mucha " : ""}energía para tormentas (${a.eneF ? a.eneF : a.ene} de ${n} modelos), pero ningún modelo ve que la tormenta llegue a formarse. Conviene estar atento.`;
   }
   if (a.nivel === "naranja") {
     const que = [a.tor >= 2 && "tormenta", a.vie >= 2 && "ráfagas fuertes", a.llu >= 2 && "lluvia fuerte"].filter(Boolean);
-    return `${Math.max(tor, a.vie, a.llu)} de ${n} modelos coinciden en ${lista(que)}. Es probable.`;
+    return `${Math.max(a.tor, a.vie, a.llu)} de ${n} modelos coinciden en ${lista(que)}. Es probable.`;
   }
-  return `${tor} de ${n} modelos coinciden en tormenta${a.gra >= 2 ? " con posible granizo" : ""}${a.vieF >= 2 ? " y ráfagas de 90 km/h o más" : ""}. Es probable y podría ser fuerte.`;
+  return `${a.tor} de ${n} modelos coinciden en tormenta${a.gra >= 2 ? " con posible granizo" : ""}${a.vieF >= 2 ? " y ráfagas de 90 km/h o más" : ""}. Es probable y podría ser fuerte.`;
 }
 
-const TXT_NIVEL = { verde: "Tranquilo", amarillo: "Posible", naranja: "Probable", rojo: "Probable y fuerte" };
+const TXT_NIVEL = { verde: "Sin tormentas", amarillo: "Posible", naranja: "Probable", rojo: "Probable y fuerte" };
 
 function renderModelos() {
   if (!datosModelos) return;
@@ -211,6 +218,7 @@ function renderModelos() {
     if (a.gra) sen.push(`<span class="chip">🧊 Granizo ${a.gra}/${a.n}</span>`);
     if (a.vie) sen.push(`<span class="chip">💨 Ráfagas fuertes ${a.vie}/${a.n}</span>`);
     if (a.llu) sen.push(`<span class="chip">🌧️ Lluvia fuerte ${a.llu}/${a.n}</span>`);
+    if (a.ene) sen.push(`<span class="chip">⚡ Energía ${a.eneF ? "muy alta" : "alta"} ${a.eneF || a.ene}/${a.n}</span>`);
     const si = a.porModelo.filter((x) => x.tormenta).map((x) => x.modelo);
     const no = a.porModelo.filter((x) => !x.tormenta).map((x) => x.modelo);
     const quien = a.tor ? `<div class="small">Ven tormenta: <b>${esc(lista(si))}</b>${no.length ? ` · no la ve${no.length > 1 ? "n" : ""}: ${esc(lista(no))}` : ""}</div>` : "";
@@ -223,7 +231,7 @@ function renderModelos() {
       ${sen.length ? `<div class="chips">${sen.join("")}</div>` : ""}
       ${quien}
       ${a.primera ? `<div class="small">Primera señal de tormenta: <b>${esc(fmtHora(a.primera))}</b></div>` : ""}
-      <div class="small">Máximos: lluvia ${a.lluviaMax.toFixed(0)} mm · ráfagas ${a.rafMax.toFixed(0)} km/h · energía (CAPE) ${a.capeMax.toFixed(0)}</div>
+      <div class="small">Máximos: lluvia ${a.lluviaMax.toFixed(0)} mm · ráfagas ${a.rafMax.toFixed(0)} km/h · energía ${a.capeMax.toFixed(0)} J/kg</div>
     </div>`;
   };
   const tabla = (filas) => `<p class="grid-nota">Los números (por ejemplo 2/3) indican cuántos de los 3 modelos ven ese fenómeno.</p><div class="grid">${filas.map(fila).join("")}</div>`;
@@ -234,22 +242,22 @@ function renderModelos() {
   $("#tabla-vecinas").innerHTML = tabla(vec);
 
   const peor = cat.reduce((m, x) => (ORDEN[x.a.nivel] > ORDEN[m.a.nivel] ? x : m), cat[0]);
-  const conTormenta = cat.filter((x) => x.a.tor >= 2).map((x) => x.l.n);
+  const conTormenta = cat.filter((x) => x.a.nivel === "naranja" || x.a.nivel === "rojo").map((x) => x.l.n);
   const posibles = cat.filter((x) => x.a.nivel === "amarillo").map((x) => x.l.n);
   const box = $("#resumen-modelos");
   box.className = "resumen " + peor.a.nivel;
   renderTiles(cat, horas);
   box.innerHTML = conTormenta.length
-    ? `En las próximas ${horas} h, al menos 2 de los 3 modelos ven tormentas en: <b>${esc(conTormenta.join(", "))}</b>.`
+    ? `En las próximas ${horas} h, al menos 2 de los 3 modelos coinciden en tormenta, viento o lluvia fuerte en: <b>${esc(lista(conTormenta))}</b>.`
     : peor.a.nivel === "verde"
       ? `En las próximas ${horas} h, ningún modelo ve tormentas ni tiempo severo en Catamarca.`
-      : `En las próximas ${horas} h no hay coincidencia entre modelos. Solo uno ve algo en: ${esc(posibles.join(", "))}.`;
+      : `En las próximas ${horas} h no hay tormentas en las que coincidan 2 o más modelos. Señales de tormenta posible en: ${esc(lista(posibles))}.`;
 
   dibujarMarcadores(res);
 }
 
 function renderTiles(cat, horas) {
-  const nTor = cat.filter((x) => x.a.tor >= 2).length;
+  const nTor = cat.filter((x) => x.a.tor >= 2).length; // misma regla que "Probable"
   const nGra = cat.filter((x) => x.a.gra >= 2).length;
   const raf = Math.max(...cat.map((x) => x.a.rafMax));
   const llu = Math.max(...cat.map((x) => x.a.lluviaMax));
@@ -323,13 +331,14 @@ const DESC_WINDY = {
   },
   cape: {
     t: "Energía: el “combustible” de las tormentas",
-    p: "Muestra la energía disponible para tormentas (CAPE), en J/kg. Por debajo de 1000 hay poco potencial; entre 1000 y 2500 pueden formarse tormentas; por encima de 2500 el ambiente favorece tormentas fuertes, con granizo y ráfagas. Que haya energía no garantiza que llueva: hace falta algo que dispare la tormenta, como un frente o el relieve.",
+    p: "Muestra la energía disponible para tormentas (CAPE), en J/kg. Por debajo de 1000 hay poco potencial; entre 1000 y 2500 pueden formarse tormentas; por encima de 2500 el ambiente favorece tormentas fuertes, con granizo y ráfagas. Que haya energía no garantiza que llueva: hace falta algo que dispare la tormenta, como un frente o el relieve. Por eso, en las tarjetas, la energía alta sola marca “Posible”, y sube a “Probable” cuando además los modelos ven la tormenta.",
   },
 };
-function ponerDesc(id, d) {
+function ponerDesc(id, d, extra = "") {
   const el = document.getElementById(id);
-  if (el && d) el.innerHTML = `<b>${esc(d.t)}</b><p>${esc(d.p)}</p>`;
+  if (el && d) el.innerHTML = `<b>${esc(d.t)}</b><p>${esc(d.p)}</p>${extra}`;
 }
+const NOTA_WINDY = `<p class="desc-nota">Este mapa usa solo el modelo europeo (ECMWF) y muestra la hora elegida en su línea de tiempo. Las tarjetas de arriba comparan 3 modelos y toman el valor máximo del período elegido, por eso los números pueden no coincidir exactamente.</p>`;
 
 // ---------- 3. Satélite ----------
 function cargarSatelite(banda) {
@@ -342,9 +351,25 @@ function cargarSatelite(banda) {
   img.src = base + opciones[0] + "?t=" + Date.now();
 }
 
+function abrirVisor() {
+  const img = $("#sat-img");
+  if (!img.src) return;
+  const v = $("#visor");
+  $("#visor-img").src = img.src;
+  $("#visor-img").classList.remove("zoom");
+  v.hidden = false;
+  document.body.style.overflow = "hidden";
+  document.querySelector(".bottom-nav").style.display = "none";
+}
+function cerrarVisor() {
+  $("#visor").hidden = true;
+  document.body.style.overflow = "";
+  document.querySelector(".bottom-nav").style.display = "";
+}
+
 // ---------- 4. Windy ----------
 function cargarWindy(overlay) {
-  ponerDesc("windy-desc", DESC_WINDY[overlay]);
+  ponerDesc("windy-desc", DESC_WINDY[overlay], NOTA_WINDY);
   const p = new URLSearchParams({
     lat: "-28.2", lon: "-66.3", detailLat: "-28.469", detailLon: "-65.785",
     zoom: "6", level: "surface", overlay, product: "ecmwf", menu: "", message: "true",
@@ -373,6 +398,11 @@ document.addEventListener("DOMContentLoaded", () => {
   tabs("[data-sat]", "sat", cargarSatelite);
   tabs("[data-windy]", "windy", cargarWindy);
   $("#horas").addEventListener("change", renderModelos);
+  $("#sat-img").addEventListener("click", abrirVisor);
+  $("#visor-cerrar").addEventListener("click", cerrarVisor);
+  $("#visor").addEventListener("click", (e) => { if (e.target.id === "visor") cerrarVisor(); });
+  $("#visor-img").addEventListener("click", (e) => e.currentTarget.classList.toggle("zoom"));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") cerrarVisor(); });
   $("#refrescar").addEventListener("click", (e) => {
     const b = e.currentTarget; b.classList.remove("girando"); void b.offsetWidth; b.classList.add("girando");
     cargarOficial(); cargarModelos(); cargarSatelite(document.querySelector("[data-sat].activo").dataset.sat);

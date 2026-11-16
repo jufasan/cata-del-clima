@@ -158,3 +158,13 @@ iframe#windy { width: 100%; height: 400px; border: 0; border-radius: 18px; displ
 .pill-demo { flex: none; min-width: 112px; text-align: center; font-size: .76rem; font-weight: 800; padding: 6px 10px; border-radius: 999px; color: var(--ink); }
 .pill-demo.verde { background: var(--verde); } .pill-demo.amarillo { background: var(--amarillo); } .pill-demo.naranja { background: var(--coral); } .pill-demo.rojo { background: var(--rojo); color: #fff; }
 .nota a { color: var(--lima); }
+
+#sat-img { cursor: zoom-in; }
+.desc-nota { margin-top: 8px !important; font-size: .78rem; opacity: .75; font-weight: 500; }
+.visor { position: fixed; inset: 0; z-index: 2000; background: #000; display: flex; flex-direction: column; }
+.visor[hidden] { display: none; }
+.visor-scroll { flex: 1; overflow: auto; display: grid; place-items: center; -webkit-overflow-scrolling: touch; }
+#visor-img { max-width: 100%; max-height: 88vh; cursor: zoom-in; display: block; }
+#visor-img.zoom { max-width: none; max-height: none; width: 220%; cursor: zoom-out; }
+.visor-cerrar { position: absolute; top: 14px; right: 14px; width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--lima); color: var(--ink); font-size: 1.1rem; font-weight: 800; cursor: pointer; z-index: 1; }
+.visor-hint { text-align: center; color: #aaa; font-size: .8rem; margin: 8px 0 18px; }
