@@ -3,17 +3,17 @@ const TZ = "America/Argentina/Catamarca";
 
 const LOCALIDADES = [
   // Catamarca
-  { n: "S. F. V. de Catamarca", lat: -28.469, lon: -65.785, prov: "CAT" },
-  { n: "Valle Viejo", lat: -28.48, lon: -65.72, prov: "CAT" },
-  { n: "Recreo", lat: -29.28, lon: -65.06, prov: "CAT" },
-  { n: "El Alto", lat: -28.31, lon: -65.37, prov: "CAT" },
-  { n: "Andalgalá", lat: -27.58, lon: -66.317, prov: "CAT" },
-  { n: "Pomán / Saujil", lat: -28.39, lon: -66.22, prov: "CAT" },
-  { n: "Belén", lat: -27.65, lon: -67.03, prov: "CAT" },
-  { n: "Santa María", lat: -26.696, lon: -66.048, prov: "CAT" },
-  { n: "Tinogasta", lat: -28.067, lon: -67.567, prov: "CAT" },
-  { n: "Fiambalá", lat: -27.687, lon: -67.615, prov: "CAT" },
-  { n: "Antofagasta de la Sierra", lat: -26.06, lon: -67.41, prov: "CAT" },
+  { n: "S. F. V. de Catamarca", d: "Capital", lat: -28.469, lon: -65.785, prov: "CAT" },
+  { n: "Valle Viejo", d: "Valle Viejo · Valle Central", lat: -28.48, lon: -65.72, prov: "CAT" },
+  { n: "Recreo", d: "Dpto. La Paz · sudeste", lat: -29.28, lon: -65.06, prov: "CAT" },
+  { n: "El Alto", d: "Dpto. El Alto · este", lat: -28.31, lon: -65.37, prov: "CAT" },
+  { n: "Andalgalá", d: "Dpto. Andalgalá · centro-norte", lat: -27.58, lon: -66.317, prov: "CAT" },
+  { n: "Pomán / Saujil", d: "Dpto. Pomán · centro-oeste", lat: -28.39, lon: -66.22, prov: "CAT" },
+  { n: "Belén", d: "Dpto. Belén · oeste", lat: -27.65, lon: -67.03, prov: "CAT" },
+  { n: "Santa María", d: "Dpto. Santa María · norte", lat: -26.696, lon: -66.048, prov: "CAT" },
+  { n: "Tinogasta", d: "Dpto. Tinogasta · oeste", lat: -28.067, lon: -67.567, prov: "CAT" },
+  { n: "Fiambalá", d: "Dpto. Tinogasta · oeste", lat: -27.687, lon: -67.615, prov: "CAT" },
+  { n: "Antofagasta de la Sierra", d: "Puna · noroeste", lat: -26.06, lon: -67.41, prov: "CAT" },
   // Vecinas
   { n: "San Miguel de Tucumán", lat: -26.808, lon: -65.218, prov: "Tucumán" },
   { n: "Cafayate", lat: -26.073, lon: -65.976, prov: "Salta" },
@@ -52,11 +52,14 @@ async function cargarOficial() {
     const alertas = d.alertas || [];
     const avisos = d.avisosCortoPlazo || [];
 
+    const feedOk = !d.estado || d.estado.alertas === "ok";
+    const avisoCorto = d.estado && d.estado.cortoPlazo === "error"
+      ? " <span style='opacity:.75'>(No se pudieron consultar los avisos a corto plazo.)</span>" : "";
     if (!alertas.length && !avisos.length) {
-      if (d.errores?.length) {
+      if (!feedOk) {
         setHero("error", "Sin conexión con el SMN", "Consultá en <a href='https://www.smn.gob.ar/alertas' target='_blank' rel='noopener'>smn.gob.ar/alertas</a>");
       } else {
-        setHero("verde", "Sin alertas vigentes", "El SMN no tiene alertas para Catamarca en este momento.");
+        setHero("verde", "Sin alertas vigentes", "El SMN no tiene alertas para Catamarca en este momento." + avisoCorto);
       }
     } else {
       const peor = alertas.reduce((m, a) => (ORDEN[a.nivel || "amarillo"] > ORDEN[m] ? a.nivel || "amarillo" : m), avisos.length ? "naranja" : "amarillo");
@@ -156,12 +159,16 @@ function analizar(loc, horas) {
   const max = (k) => Math.max(...porModelo.map((x) => x[k] ?? 0));
   const primeras = porModelo.map((x) => x.primeraTormenta).filter(Boolean).sort();
 
-  // Nivel de la señal según coincidencia entre modelos
+  // Nivel según cuántos modelos coinciden
+  //  verde   = ningún modelo ve tormenta, viento fuerte ni lluvia fuerte
+  //  amarillo= lo ve 1 solo modelo (posible, poca coincidencia)
+  //  naranja = 2 o 3 modelos coinciden en tormenta, viento ≥70 o lluvia fuerte (probable)
+  //  rojo    = 2 o 3 coinciden en tormenta Y además 2+ ven granizo o ráfagas ≥90 (probable y fuerte)
+  const mayoria = Math.min(2, n);
   let nivel = "verde";
-  const mayoria = Math.ceil(n / 2); // 2 de 3
   if (tor >= 1 || vie >= 1 || llu >= 1) nivel = "amarillo";
-  if ((tor >= mayoria && (gra >= 1 || max("capeMax") >= 2500)) || vieF >= mayoria || (llu >= mayoria && tor >= mayoria)) nivel = "naranja";
-  if ((tor === n && gra >= mayoria) || vieF === n) nivel = "rojo";
+  if (tor >= mayoria || vie >= mayoria || llu >= mayoria) nivel = "naranja";
+  if ((tor >= mayoria && gra >= mayoria) || vieF >= mayoria) nivel = "rojo";
 
   return { n, tor, gra, vie, vieF, llu, nivel, porModelo,
     lluviaMax: max("lluviaTot"), rafMax: max("rafMax"), capeMax: max("capeMax"),
@@ -176,7 +183,22 @@ function offsetTZ(loc) {
   return `${sign}${String(Math.floor(a / 3600)).padStart(2, "0")}:${String((a % 3600) / 60).padStart(2, "0")}`;
 }
 
-const TXT_NIVEL = { verde: "Sin señal", amarillo: "Señal débil", naranja: "Señal fuerte", rojo: "Señal muy fuerte" };
+const lista = (arr) => arr.length > 1 ? arr.slice(0, -1).join(", ") + " y " + arr[arr.length - 1] : arr.join("");
+function frase(a, horas) {
+  const tor = a.tor, n = a.n;
+  if (a.nivel === "verde") return `Ningún modelo ve tormentas, viento ni lluvia fuerte en las próximas ${horas} h.`;
+  if (a.nivel === "amarillo") {
+    const que = [a.tor && "tormenta", a.vie && "ráfagas fuertes", a.llu && "lluvia fuerte"].filter(Boolean);
+    return `Solo 1 de ${n} modelos ve ${lista(que)}. Puede pasar, pero hay poca coincidencia.`;
+  }
+  if (a.nivel === "naranja") {
+    const que = [a.tor >= 2 && "tormenta", a.vie >= 2 && "ráfagas fuertes", a.llu >= 2 && "lluvia fuerte"].filter(Boolean);
+    return `${Math.max(tor, a.vie, a.llu)} de ${n} modelos coinciden en ${lista(que)}. Es probable.`;
+  }
+  return `${tor} de ${n} modelos coinciden en tormenta${a.gra >= 2 ? " con posible granizo" : ""}${a.vieF >= 2 ? " y ráfagas de 90 km/h o más" : ""}. Es probable y podría ser fuerte.`;
+}
+
+const TXT_NIVEL = { verde: "Tranquilo", amarillo: "Posible", naranja: "Probable", rojo: "Probable y fuerte" };
 
 function renderModelos() {
   if (!datosModelos) return;
@@ -187,19 +209,24 @@ function renderModelos() {
     const sen = [];
     if (a.tor) sen.push(`<span class="chip">⛈️ Tormenta ${a.tor}/${a.n}</span>`);
     if (a.gra) sen.push(`<span class="chip">🧊 Granizo ${a.gra}/${a.n}</span>`);
-    if (a.vie) sen.push(`<span class="chip">💨 Ráfagas ${a.vie}/${a.n}</span>`);
-    if (a.llu) sen.push(`<span class="chip">🌧️ Lluvia ${a.llu}/${a.n}</span>`);
+    if (a.vie) sen.push(`<span class="chip">💨 Ráfagas fuertes ${a.vie}/${a.n}</span>`);
+    if (a.llu) sen.push(`<span class="chip">🌧️ Lluvia fuerte ${a.llu}/${a.n}</span>`);
+    const si = a.porModelo.filter((x) => x.tormenta).map((x) => x.modelo);
+    const no = a.porModelo.filter((x) => !x.tormenta).map((x) => x.modelo);
+    const quien = a.tor ? `<div class="small">Ven tormenta: <b>${esc(lista(si))}</b>${no.length ? ` · no la ve${no.length > 1 ? "n" : ""}: ${esc(lista(no))}` : ""}</div>` : "";
     return `<div class="loc-card ${a.nivel}">
       <div class="loc-top">
-        <div><div class="loc-n">${esc(l.n)}</div>${l.prov !== "CAT" ? `<div class="loc-p">${esc(l.prov)}</div>` : ""}</div>
+        <div><div class="loc-n">${esc(l.n)}</div><div class="loc-p">${esc(l.prov !== "CAT" ? l.prov : l.d || "")}</div></div>
         <span class="pill">${TXT_NIVEL[a.nivel]}</span>
       </div>
+      <div class="frase">${frase(a, horas)}</div>
       ${sen.length ? `<div class="chips">${sen.join("")}</div>` : ""}
-      ${a.primera ? `<div class="small">Desde <b>${esc(fmtHora(a.primera))}</b></div>` : ""}
-      <div class="small">${a.lluviaMax.toFixed(0)} mm · ráfagas ${a.rafMax.toFixed(0)} km/h · CAPE ${a.capeMax.toFixed(0)}</div>
+      ${quien}
+      ${a.primera ? `<div class="small">Primera señal de tormenta: <b>${esc(fmtHora(a.primera))}</b></div>` : ""}
+      <div class="small">Máximos: lluvia ${a.lluviaMax.toFixed(0)} mm · ráfagas ${a.rafMax.toFixed(0)} km/h · energía (CAPE) ${a.capeMax.toFixed(0)}</div>
     </div>`;
   };
-  const tabla = (filas) => `<p class="grid-nota">El número indica cuántos de los 3 modelos coinciden.</p><div class="grid">${filas.map(fila).join("")}</div>`;
+  const tabla = (filas) => `<p class="grid-nota">Los números (por ejemplo 2/3) indican cuántos de los 3 modelos ven ese fenómeno.</p><div class="grid">${filas.map(fila).join("")}</div>`;
 
   const cat = res.filter((x) => x.l.prov === "CAT");
   const vec = res.filter((x) => x.l.prov !== "CAT");
@@ -208,14 +235,15 @@ function renderModelos() {
 
   const peor = cat.reduce((m, x) => (ORDEN[x.a.nivel] > ORDEN[m.a.nivel] ? x : m), cat[0]);
   const conTormenta = cat.filter((x) => x.a.tor >= 2).map((x) => x.l.n);
+  const posibles = cat.filter((x) => x.a.nivel === "amarillo").map((x) => x.l.n);
   const box = $("#resumen-modelos");
   box.className = "resumen " + peor.a.nivel;
   renderTiles(cat, horas);
   box.innerHTML = conTormenta.length
-    ? `Al menos 2 de 3 modelos muestran tormentas en las próximas ${horas} h en: ${esc(conTormenta.join(", "))}.`
+    ? `En las próximas ${horas} h, al menos 2 de los 3 modelos ven tormentas en: <b>${esc(conTormenta.join(", "))}</b>.`
     : peor.a.nivel === "verde"
-      ? `Los modelos no muestran señales de tiempo severo en Catamarca en las próximas ${horas} h.`
-      : `Hay señales aisladas (pocos modelos coinciden) en las próximas ${horas} h. Mayor señal: ${esc(peor.l.n)}.`;
+      ? `En las próximas ${horas} h, ningún modelo ve tormentas ni tiempo severo en Catamarca.`
+      : `En las próximas ${horas} h no hay coincidencia entre modelos. Solo uno ve algo en: ${esc(posibles.join(", "))}.`;
 
   dibujarMarcadores(res);
 }

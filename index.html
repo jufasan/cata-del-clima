@@ -57,7 +57,7 @@
           <option value="48">48 h</option>
         </select>
       </div>
-      <p class="nota">Pronóstico de 3 modelos internacionales (ECMWF, GFS e ICON). <b>No es una alerta</b>: cuando varios coinciden, la señal es más confiable.</p>
+      <p class="nota">Comparamos 3 modelos de pronóstico internacionales (ECMWF, GFS e ICON) en distintas zonas de Catamarca. <b>No es una alerta oficial</b>: cuantos más modelos coinciden, más confiable es. <a href="#guia">¿Cómo leerlo?</a></p>
 
       <div id="tiles" class="tiles">
         <div class="tile lima"><span class="badge-ic">⛈️</span><div class="t-num">–</div><div class="t-lbl">Tormenta</div></div>
@@ -71,7 +71,7 @@
       <div class="card-dark map-card">
         <div id="mapa" aria-label="Mapa de localidades"></div>
         <div class="leyenda">
-          <span><i class="dot verde"></i>Sin señal</span><span><i class="dot amarillo"></i>Débil</span><span><i class="dot naranja"></i>Fuerte</span><span><i class="dot rojo"></i>Muy fuerte</span>
+          <span><i class="dot verde"></i>Tranquilo</span><span><i class="dot amarillo"></i>Posible</span><span><i class="dot naranja"></i>Probable</span><span><i class="dot rojo"></i>Probable y fuerte</span>
         </div>
       </div>
 
@@ -80,17 +80,34 @@
       <h3>Provincias vecinas <small>lo que puede venir</small></h3>
       <div id="tabla-vecinas"></div>
 
-      <details class="card-dark como">
-        <summary>¿Cómo se calcula la señal?</summary>
-        <ul>
-          <li><b>Tormenta:</b> el modelo pronostica tormenta (códigos 95–99) o hay mucha energía para tormentas (CAPE ≥ 1500 J/kg) con lluvia.</li>
-          <li><b>Granizo posible:</b> tormenta con granizo pronosticada (códigos 96/99) o CAPE ≥ 2500 J/kg con tormenta. Es potencial, no certeza.</li>
-          <li><b>Viento:</b> ráfagas ≥ 70 km/h (fuerte ≥ 90 km/h).</li>
-          <li><b>Lluvia:</b> ≥ 10 mm en una hora o ≥ 40 mm en el período.</li>
-          <li><b>Coincidencia:</b> cuántos de los 3 modelos muestran la señal.</li>
+      <div class="card-dark guia" id="guia">
+        <h3>Cómo leer estas tarjetas</h3>
+        <p>Usamos <b>3 modelos meteorológicos</b>: programas que calculan cómo va a evolucionar la atmósfera. Son los mismos que usan los servicios meteorológicos de todo el mundo:</p>
+        <ul class="modelos-lista">
+          <li><b>ECMWF</b> · Centro Europeo de Pronósticos. Suele ser el más preciso a nivel global.</li>
+          <li><b>GFS</b> · Servicio Meteorológico de Estados Unidos (NOAA).</li>
+          <li><b>ICON</b> · Servicio Meteorológico de Alemania (DWD).</li>
         </ul>
-        <p>Los modelos tienen error, sobre todo con tormentas aisladas en zonas de montaña. Ante cualquier duda, manda lo oficial del SMN y de Defensa Civil.</p>
-      </details>
+        <p>Cada modelo puede equivocarse. Por eso los comparamos: <b>cuantos más coinciden, más confiable es el pronóstico</b>.</p>
+        <div class="niveles">
+          <div class="nivel"><span class="pill-demo verde">Tranquilo</span><span>Ningún modelo ve tormentas, ráfagas fuertes ni lluvia fuerte.</span></div>
+          <div class="nivel"><span class="pill-demo amarillo">Posible</span><span>Solo 1 de los 3 modelos lo ve. Puede pasar, pero hay poca coincidencia.</span></div>
+          <div class="nivel"><span class="pill-demo naranja">Probable</span><span>2 o 3 modelos coinciden en tormenta, ráfagas de 70 km/h o más, o lluvia fuerte.</span></div>
+          <div class="nivel"><span class="pill-demo rojo">Probable y fuerte</span><span>2 o 3 modelos coinciden en tormenta con posible granizo, o en ráfagas de 90 km/h o más.</span></div>
+        </div>
+        <p class="small">Mostramos 11 localidades de distintas zonas de Catamarca (Capital, Valle Central, este, oeste, norte y Puna) porque el tiempo cambia mucho de una zona a otra. Abajo también aparecen ciudades de provincias vecinas: las tormentas suelen llegar desde ahí.</p>
+        <details class="como">
+          <summary>Detalle técnico del cálculo</summary>
+          <ul>
+            <li><b>Tormenta:</b> el modelo pronostica tormenta eléctrica, o hay mucha energía para tormentas (CAPE de 1500 J/kg o más) y además lluvia.</li>
+            <li><b>Granizo posible:</b> el modelo pronostica tormenta con granizo, o la energía supera 2500 J/kg durante una tormenta.</li>
+            <li><b>Ráfagas fuertes:</b> 70 km/h o más (muy fuertes: 90 km/h o más).</li>
+            <li><b>Lluvia fuerte:</b> 10 mm o más en una hora, o 40 mm o más en el período elegido.</li>
+            <li><b>CAPE:</b> la energía disponible para que se formen tormentas. Más energía, tormentas potencialmente más fuertes.</li>
+          </ul>
+          <p>Esto es un pronóstico, no una alerta. Ante cualquier duda, manda lo oficial del SMN y de Defensa Civil.</p>
+        </details>
+      </div>
       <p class="fuente">Fuente: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> (ECMWF, NOAA GFS, DWD ICON) · CC BY 4.0 · Actualizado <span id="hora-modelos">–</span></p>
     </section>
 
