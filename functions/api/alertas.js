@@ -16,6 +16,9 @@ const HEADERS_SALIDA = {
 };
 
 export async function onRequestGet(context) {
+  const url = new URL(context.request.url);
+  if (url.searchParams.has("debug")) return diagnostico();
+
   // 1) Respuesta guardada en caché: así el SMN recibe como máximo una consulta cada pocos minutos,
   //    sin importar cuánta gente abra la página.
   const cache = caches.default;
@@ -81,7 +84,12 @@ async function leerAlertasCAP() {
 
   const links = extraerLinks(feed).slice(0, 40);
   const caps = await traerVarias(links);
-  for (const c of caps) if (c.status === "fulfilled") documentos.push(c.value);
+  let fallidos = 0;
+  for (const c of caps) c.status === "fulfilled" ? documentos.push(c.value) : fallidos++;
+  // Si no se pudo abrir ninguna alerta (o más de la mitad), es un error, no "sin alertas"
+  if (links.length && (fallidos === links.length || fallidos > links.length / 2)) {
+    throw new Error(`no se pudieron abrir ${fallidos} de ${links.length} alertas del feed`);
+  }
 
   const alertas = [];
   const vistos = new Set();
@@ -174,6 +182,32 @@ function afectaCatamarca(a) {
     }
   }
   return false;
+}
+
+// ---------- Diagnóstico: /api/alertas?debug=1 ----------
+async function diagnostico() {
+  const out = { feed: {}, muestras: [], todasLasAreas: [], alertasAntesDeFiltrar: 0 };
+  try {
+    const feed = await traer(FEED_ALERTAS);
+    const links = extraerLinks(feed);
+    out.feed = { largo: feed.length, comienzo: feed.slice(0, 1500), cantidadLinks: links.length, links: links.slice(0, 15), traeAlertEmbebido: /<alert[\s>]/i.test(feed) };
+    const areas = new Set();
+    for (const l of links.slice(0, 6)) {
+      const m = { link: l };
+      try {
+        const doc = await traer(l);
+        const parsed = parsearCAP(doc);
+        out.alertasAntesDeFiltrar += parsed.length;
+        m.ok = true;
+        m.comienzo = doc.slice(0, 700);
+        m.parseadas = parsed.map((a) => ({ evento: a.evento, nivel: a.nivel, inicio: a.inicio, fin: a.fin, areas: a.areas.slice(0, 8), poligonos: a.poligonos.length, primerPunto: a.poligonos[0]?.[0], afectaCatamarca: afectaCatamarca(a) }));
+        parsed.forEach((a) => a.areas.forEach((x) => areas.add(x)));
+      } catch (e) { m.ok = false; m.error = e.message; }
+      out.muestras.push(m);
+    }
+    out.todasLasAreas = [...areas].slice(0, 80);
+  } catch (e) { out.error = e.message; }
+  return new Response(JSON.stringify(out, null, 2), { headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" } });
 }
 
 // ---------- Avisos a corto plazo ----------
