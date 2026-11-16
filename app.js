@@ -40,6 +40,27 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "
 const fmtHora = (d) => new Date(d).toLocaleString("es-AR", { timeZone: TZ, weekday: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 const ahoraTxt = () => new Date().toLocaleTimeString("es-AR", { timeZone: TZ, hour: "2-digit", minute: "2-digit" });
 
+// Describe cuándo rige una alerta, en palabras: "rige ahora hasta…" o "desde hoy 00:00"
+function cuando(a) {
+  const ahora = Date.now();
+  const ini = a.inicio ? Date.parse(a.inicio) : NaN;
+  const fin = a.fin ? Date.parse(a.fin) : NaN;
+  const dia = (t) => {
+    const f = (d) => new Date(d).toLocaleDateString("es-AR", { timeZone: TZ });
+    if (f(t) === f(ahora)) return "hoy";
+    if (f(t) === f(ahora + 864e5)) return "mañana";
+    return new Date(t).toLocaleDateString("es-AR", { timeZone: TZ, weekday: "long", day: "numeric" });
+  };
+  const hora = (t) => {
+    const h = new Date(t).toLocaleTimeString("es-AR", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+    return h === "00:00" ? "00:00 (medianoche)" : h;
+  };
+  if (!isNaN(ini) && ini > ahora) {
+    return { activa: false, corto: `desde ${dia(ini)} ${hora(ini)}`, largo: `Empieza ${dia(ini)} a las ${hora(ini)}${!isNaN(fin) ? ` y sigue hasta ${dia(fin)} a las ${hora(fin)}` : ""}.` };
+  }
+  return { activa: true, corto: !isNaN(fin) ? `vigente hasta ${dia(fin)} ${hora(fin)}` : "vigente", largo: `Rige ahora${!isNaN(fin) ? ` hasta ${dia(fin)} a las ${hora(fin)}` : ""}.` };
+}
+
 // ---------- 1. Alertas oficiales ----------
 async function cargarOficial() {
   const box = $("#estado-oficial");
@@ -49,7 +70,7 @@ async function cargarOficial() {
     if (!r.ok) throw new Error("HTTP " + r.status);
     const d = await r.json();
     $("#hora-oficial").textContent = ahoraTxt();
-    const alertas = d.alertas || [];
+    const alertas = (d.alertas || []).slice().sort((x, y) => (Date.parse(x.inicio) || 0) - (Date.parse(y.inicio) || 0));
     const avisos = d.avisosCortoPlazo || [];
 
     const feedOk = !d.estado || d.estado.alertas === "ok";
@@ -67,8 +88,14 @@ async function cargarOficial() {
       const n = alertas.length + avisos.length;
       const eventos = [...new Set(alertas.map((a) => a.evento).filter(Boolean))].join(", ");
       const col = { amarillo: ["amarilla", "amarillas"], naranja: ["naranja", "naranja"], rojo: ["roja", "rojas"] }[peor];
+      const activas = alertas.filter((a) => cuando(a).activa);
+      const prox = alertas.find((a) => !cuando(a).activa);
+      let sub;
+      if (avisos.length) sub = "Aviso a corto plazo vigente";
+      else if (activas.length) sub = `Rige ahora · ${cuando(activas[0]).corto.replace("vigente ", "")}`;
+      else if (prox) sub = `Todavía no empezó · rige ${cuando(prox).corto}`;
       setHero(peor, n === 1 ? `1 alerta ${col[0]}` : `${n} alertas ${col[1]}`,
-        `${esc(eventos || "Avisos a corto plazo")} · afecta a Catamarca`);
+        `${esc(eventos || "Avisos a corto plazo")} · ${esc(sub || "afecta a Catamarca")}`);
     }
 
     const lista = $("#lista-alertas");
@@ -81,11 +108,11 @@ async function cargarOficial() {
         </div>`).join("") +
       alertas.map((a) => `
         <div class="alerta">
-          <div class="al-top"><span class="nivel-pill ${esc(a.nivel || "amarillo")}">${esc(a.nivel || "alerta")}</span><h4>${esc(a.evento || a.titulo)}</h4></div>
+          <div class="al-top"><span class="nivel-pill ${esc(a.nivel || "amarillo")}">${esc(a.nivel || "alerta")}</span><h4>${esc(a.evento || a.titulo)}</h4><span class="estado-al ${cuando(a).activa ? "ahora" : "prox"}">${cuando(a).activa ? "Rige ahora" : "Próxima"}</span></div>
+          <p class="cuando">🕒 ${esc(cuando(a).largo)}</p>
           ${a.descripcion ? `<p>${esc(a.descripcion)}</p>` : ""}
           ${a.instruccion ? `<p><i>${esc(a.instruccion)}</i></p>` : ""}
           <p class="meta">📍 ${esc(a.areas.join(", ") || "–")}</p>
-          <p class="meta">🕒 ${a.inicio ? esc(fmtHora(a.inicio)) : "–"} → ${a.fin ? esc(fmtHora(a.fin)) : "–"}</p>
         </div>`).join("");
 
     dibujarPoligonos(alertas);
