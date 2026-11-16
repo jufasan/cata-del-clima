@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cata del Clima · Alertas y pronóstico para Catamarca</title>
+  <meta name="author" content="Instituto Cecilia Grierson | La Carrillo">
+  <meta name="description" content="Un proyecto del Instituto Cecilia Grierson | La Carrillo. Panel ciudadano: alertas oficiales del SMN para Catamarca, señales de tormenta de modelos meteorológicos y satélite en tiempo real, con las fuentes a la vista.">
+  <meta name="theme-color" content="#0a0a0a">
+  <link rel="icon" href="logo.svg" type="image/svg+xml">
+  <link rel="icon" href="icon-192.png" sizes="192x192">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <header class="top" id="inicio">
+      <img class="logo" src="logo.svg" alt="Cata del Clima" width="46" height="46">
+      <div class="top-txt">
+        <h1>Cata del Clima</h1>
+        <p>Catamarca, catá el clima antes de salir</p>
+      </div>
+      <button class="icon-btn" id="refrescar" aria-label="Actualizar">
+        <svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>
+      </button>
+    </header>
+
+    <div class="credito">
+      <span>Un proyecto del</span> <b>Instituto Cecilia Grierson</b> <span class="sep">|</span> <b>La Carrillo</b>
+    </div>
+
+    <!-- 1. Alertas oficiales -->
+    <section id="oficial">
+      <div id="estado-oficial" class="hero cargando">
+        <div class="hero-top">
+          <span class="badge-ic"><svg viewBox="0 0 24 24"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17h.01"/></svg></span>
+          <span class="hero-tag">Alerta oficial · SMN</span>
+        </div>
+        <div class="hero-big" id="hero-big">Consultando…</div>
+        <div class="hero-sub" id="hero-sub">Servicio Meteorológico Nacional</div>
+      </div>
+      <div id="lista-alertas"></div>
+      <p class="fuente">Fuente: <a href="https://www.smn.gob.ar/alertas" target="_blank" rel="noopener">SMN – Sistema de Alerta Temprana</a> (feed CAP oficial) · Actualizado <span id="hora-oficial">–</span></p>
+    </section>
+
+    <!-- 2. Modelos -->
+    <section id="modelos">
+      <div class="sec-head">
+        <h2>Qué muestran los modelos</h2>
+        <select id="horas" aria-label="Período">
+          <option value="12">12 h</option>
+          <option value="24" selected>24 h</option>
+          <option value="48">48 h</option>
+        </select>
+      </div>
+      <p class="nota">Pronóstico de 3 modelos internacionales (ECMWF, GFS e ICON). <b>No es una alerta</b>: cuando varios coinciden, la señal es más confiable.</p>
+
+      <div id="tiles" class="tiles">
+        <div class="tile lima"><span class="badge-ic">⛈️</span><div class="t-num">–</div><div class="t-lbl">Tormenta</div></div>
+        <div class="tile turquesa"><span class="badge-ic">🧊</span><div class="t-num">–</div><div class="t-lbl">Granizo posible</div></div>
+        <div class="tile coral"><span class="badge-ic">💨</span><div class="t-num">–</div><div class="t-lbl">Ráfagas máx.</div></div>
+        <div class="tile celeste"><span class="badge-ic">🌧️</span><div class="t-num">–</div><div class="t-lbl">Lluvia máx.</div></div>
+      </div>
+
+      <div id="resumen-modelos" class="resumen cargando">Cargando modelos…</div>
+
+      <div class="card-dark map-card">
+        <div id="mapa" aria-label="Mapa de localidades"></div>
+        <div class="leyenda">
+          <span><i class="dot verde"></i>Sin señal</span><span><i class="dot amarillo"></i>Débil</span><span><i class="dot naranja"></i>Fuerte</span><span><i class="dot rojo"></i>Muy fuerte</span>
+        </div>
+      </div>
+
+      <h3>Catamarca</h3>
+      <div id="tabla-catamarca"></div>
+      <h3>Provincias vecinas <small>lo que puede venir</small></h3>
+      <div id="tabla-vecinas"></div>
+
+      <details class="card-dark como">
+        <summary>¿Cómo se calcula la señal?</summary>
+        <ul>
+          <li><b>Tormenta:</b> el modelo pronostica tormenta (códigos 95–99) o hay mucha energía para tormentas (CAPE ≥ 1500 J/kg) con lluvia.</li>
+          <li><b>Granizo posible:</b> tormenta con granizo pronosticada (códigos 96/99) o CAPE ≥ 2500 J/kg con tormenta. Es potencial, no certeza.</li>
+          <li><b>Viento:</b> ráfagas ≥ 70 km/h (fuerte ≥ 90 km/h).</li>
+          <li><b>Lluvia:</b> ≥ 10 mm en una hora o ≥ 40 mm en el período.</li>
+          <li><b>Coincidencia:</b> cuántos de los 3 modelos muestran la señal.</li>
+        </ul>
+        <p>Los modelos tienen error, sobre todo con tormentas aisladas en zonas de montaña. Ante cualquier duda, manda lo oficial del SMN y de Defensa Civil.</p>
+      </details>
+      <p class="fuente">Fuente: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> (ECMWF, NOAA GFS, DWD ICON) · CC BY 4.0 · Actualizado <span id="hora-modelos">–</span></p>
+    </section>
+
+    <!-- 3. Satélite -->
+    <section id="satelite">
+      <div class="sec-head"><h2>Satélite en vivo</h2></div>
+      <div class="card-color amarillo">
+        <div class="seg" role="tablist">
+          <button class="tab activo" data-sat="13">Infrarrojo</button>
+          <button class="tab" data-sat="GEOCOLOR">Color</button>
+        </div>
+        <a id="sat-link" href="https://www.star.nesdis.noaa.gov/GOES/sector.php?sat=G19&sector=ssa" target="_blank" rel="noopener">
+          <img id="sat-img" alt="Imagen satelital GOES-19 del sur de Sudamérica" loading="lazy">
+        </a>
+        <div class="desc" id="sat-desc" aria-live="polite"></div>
+        <p class="card-note">Imagen del satélite GOES-19, renovada cada 10 minutos. Catamarca está en el centro-oeste de la imagen, al norte de La Rioja. Tocá la imagen para verla más grande.</p>
+      </div>
+      <p class="fuente">Fuente: <a href="https://www.star.nesdis.noaa.gov/GOES/sector.php?sat=G19&sector=ssa" target="_blank" rel="noopener">NOAA / NESDIS / STAR – GOES-19</a> · GeoColor: CIRA/NOAA</p>
+    </section>
+
+    <!-- 4. Mapa animado y rayos -->
+    <section id="mapa-vivo">
+      <div class="sec-head"><h2>Mapa animado y rayos</h2></div>
+      <div class="card-color celeste">
+        <div class="seg">
+          <button class="tab activo" data-windy="rain">Lluvia</button>
+          <button class="tab" data-windy="gust">Ráfagas</button>
+          <button class="tab" data-windy="cape">Energía</button>
+        </div>
+        <iframe id="windy" title="Mapa Windy" loading="lazy"></iframe>
+        <div class="desc" id="windy-desc" aria-live="polite"></div>
+      </div>
+      <div class="links">
+        <a class="link-card lima" href="https://www.lightningmaps.org/#m=oss;t=3;s=0;o=0;b=;ts=0;y=-28.3;x=-66.2;z=7;d=2;dl=2;dc=0;" target="_blank" rel="noopener">
+          <span class="badge-ic">⚡</span><span>Rayos en vivo<small>Blitzortung</small></span><span class="arrow">↗</span>
+        </a>
+        <a class="link-card coral" href="https://www.smn.gob.ar/radar" target="_blank" rel="noopener">
+          <span class="badge-ic">📡</span><span>Radares<small>SMN</small></span><span class="arrow">↗</span>
+        </a>
+      </div>
+      <p class="fuente">Fuentes: <a href="https://www.windy.com" target="_blank" rel="noopener">Windy.com</a> · <a href="https://www.blitzortung.org" target="_blank" rel="noopener">Blitzortung.org</a> · <a href="https://www.smn.gob.ar" target="_blank" rel="noopener">SMN</a></p>
+    </section>
+
+    <section class="card-dark aviso" id="info">
+      <h2>Importante</h2>
+      <p>Este sitio <b>no emite alertas propias</b>. Muestra la información oficial del SMN y datos públicos de modelos y satélites para que cualquiera pueda chequear. Las decisiones de las autoridades pueden basarse en información adicional.</p>
+      <p>Emergencias: <b>911</b>. Seguí siempre las indicaciones de Defensa Civil de Catamarca y del <a href="https://www.smn.gob.ar/alertas" target="_blank" rel="noopener">SMN</a>.</p>
+      <h2 class="mt">Quiénes lo hacen</h2>
+      <p>Cata del Clima es un proyecto del <b>Instituto Cecilia Grierson</b> de <b>La Carrillo</b>, asociación civil sin fines de lucro de Catamarca. Lo hicimos para que cualquier persona pueda acceder de forma rápida y confiable a la información del tiempo y a las alertas oficiales.</p>
+      <p class="fuente">Cata del Clima · Instituto Cecilia Grierson | La Carrillo · Datos: SMN, Open-Meteo (ECMWF, NOAA, DWD), NOAA GOES, Windy, Blitzortung.</p>
+    </section>
+  </div>
+
+  <nav class="bottom-nav" aria-label="Secciones">
+    <a href="#oficial" class="activo"><svg viewBox="0 0 24 24"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17h.01"/></svg><span>Alertas</span></a>
+    <a href="#modelos"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Modelos</span></a>
+    <a href="#satelite" class="centro" aria-label="Satélite"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></a>
+    <a href="#mapa-vivo"><svg viewBox="0 0 24 24"><path d="m9 4-6 2v14l6-2 6 2 6-2V4l-6 2-6-2Z"/><path d="M9 4v14M15 6v14"/></svg><span>Mapa</span></a>
+    <a href="#info"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01"/></svg><span>Info</span></a>
+  </nav>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
