@@ -16,35 +16,59 @@ const HEADERS_SALIDA = {
 };
 
 export async function onRequestGet(context) {
+  // 1) Respuesta guardada en caché: así el SMN recibe como máximo una consulta cada pocos minutos,
+  //    sin importar cuánta gente abra la página.
+  const cache = caches.default;
+  const clave = new Request(new URL("/api/alertas?v=2", context.request.url).toString());
+  const enCache = await cache.match(clave);
+  if (enCache) return enCache;
+
   const resultado = {
     actualizado: new Date().toISOString(),
     fuente: "Servicio Meteorológico Nacional (SMN) – feeds CAP oficiales",
     alertas: [],
     avisosCortoPlazo: [],
+    estado: { alertas: "ok", cortoPlazo: "ok" },
     errores: [],
   };
 
-  const [a, b] = await Promise.allSettled([
-    leerAlertasCAP(),
-    leerAvisosCortoPlazo(),
-  ]);
+  // 2) Consultas de a una (no en paralelo) para no saturar al SMN.
+  try { resultado.alertas = await leerAlertasCAP(); }
+  catch (e) { resultado.estado.alertas = "error"; resultado.errores.push("Feed de alertas del SMN: " + e.message); }
 
-  if (a.status === "fulfilled") resultado.alertas = a.value;
-  else resultado.errores.push("No se pudo leer el feed de alertas del SMN: " + a.reason);
+  try { resultado.avisosCortoPlazo = await leerAvisosCortoPlazo(); }
+  catch (e) { resultado.estado.cortoPlazo = "error"; resultado.errores.push("Feed de avisos a corto plazo del SMN: " + e.message); }
 
-  if (b.status === "fulfilled") resultado.avisosCortoPlazo = b.value;
-  else resultado.errores.push("No se pudo leer el feed de avisos a corto plazo del SMN: " + b.reason);
-
-  return new Response(JSON.stringify(resultado), { headers: HEADERS_SALIDA });
+  // 3) Guardar: 5 min si salió todo bien, 2 min si hubo algún error.
+  const segundos = resultado.errores.length ? 120 : 300;
+  const resp = new Response(JSON.stringify(resultado), {
+    headers: { ...HEADERS_SALIDA, "cache-control": `public, max-age=60, s-maxage=${segundos}` },
+  });
+  context.waitUntil(cache.put(clave, resp.clone()));
+  return resp;
 }
 
-async function traer(url) {
+async function traer(url, intento = 0) {
   const r = await fetch(url, {
-    headers: { "user-agent": "CataDelClima/1.0 (panel ciudadano sin fines de alerta propia)" },
-    cf: { cacheTtl: 180, cacheEverything: true },
+    headers: { "user-agent": "CataDelClima/1.0 (panel ciudadano, Instituto Cecilia Grierson | La Carrillo)" },
+    cf: { cacheTtl: 300, cacheEverything: true },
   });
+  if ((r.status === 429 || r.status >= 500) && intento < 2) {
+    await new Promise((ok) => setTimeout(ok, 1500 * (intento + 1)));
+    return traer(url, intento + 1);
+  }
   if (!r.ok) throw new Error("HTTP " + r.status);
   return await r.text();
+}
+
+// Descarga una lista de URLs de a pocas por vez
+async function traerVarias(urls, deAPor = 3) {
+  const res = [];
+  for (let i = 0; i < urls.length; i += deAPor) {
+    const lote = await Promise.allSettled(urls.slice(i, i + deAPor).map((u) => traer(u)));
+    res.push(...lote);
+  }
+  return res;
 }
 
 // ---------- Alertas CAP ----------
@@ -55,8 +79,8 @@ async function leerAlertasCAP() {
   let documentos = [];
   if (/<alert[\s>]/i.test(feed)) documentos.push(feed);
 
-  const links = extraerLinks(feed).slice(0, 60);
-  const caps = await Promise.allSettled(links.map(traer));
+  const links = extraerLinks(feed).slice(0, 40);
+  const caps = await traerVarias(links);
   for (const c of caps) if (c.status === "fulfilled") documentos.push(c.value);
 
   const alertas = [];
