@@ -180,11 +180,36 @@ def parse_fecha(s):
 GRILLA = []
 
 
+def registrar_fallo(carpeta, motivo):
+    """El SMN no respondió: conservar los últimos datos buenos y anotar el intento fallido."""
+    ruta_out = os.path.join(carpeta, "alertas-catamarca.json")
+    out = {}
+    if os.path.exists(ruta_out):
+        try:
+            out = json.load(open(ruta_out, encoding="utf-8"))
+        except Exception:
+            out = {}
+    out["errorSMN"] = motivo[:300]
+    out["ultimoIntento"] = datetime.now(timezone.utc).isoformat()
+    out.setdefault("alertas", [])
+    out.setdefault("avisosCortoPlazo", [])
+    json.dump(out, open(ruta_out, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+    print("El SMN no respondió:", motivo, "— se conservan los últimos datos y se reintenta en la próxima corrida.")
+
+
 def main():
-    global GRILLA
-    GRILLA = grilla_catamarca()
     carpeta = sys.argv[1] if len(sys.argv) > 1 else "datos"
     os.makedirs(carpeta, exist_ok=True)
+    try:
+        correr(carpeta)
+    except Exception as e:
+        # Nunca terminar con error: así no se cortan los datos ni llegan mails de falla en cadena
+        registrar_fallo(carpeta, f"{type(e).__name__}: {e}")
+
+
+def correr(carpeta):
+    global GRILLA
+    GRILLA = grilla_catamarca()
     ruta_cache = os.path.join(carpeta, "cache.json")
     ruta_out = os.path.join(carpeta, "alertas-catamarca.json")
     cache = {}
