@@ -73,15 +73,21 @@ async function cargarOficial() {
     const alertas = (d.alertas || []).slice().sort((x, y) => (Date.parse(x.inicio) || 0) - (Date.parse(y.inicio) || 0));
     const avisos = d.avisosCortoPlazo || [];
 
-    const feedOk = !d.estado || d.estado.alertas === "ok";
+    const est = (d.estado && d.estado.alertas) || "ok";
     const avisoCorto = "";
     const notaCorto = document.getElementById("nota-corto");
     if (notaCorto) notaCorto.style.display = d.estado && d.estado.cortoPlazo === "error" ? "" : "none";
+    if (d.revisado) $("#hora-oficial").textContent = new Date(d.revisado).toLocaleTimeString("es-AR", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+    const linkSMN = "<a href='https://www.smn.gob.ar/alertas' target='_blank' rel='noopener'>mapa de alertas del SMN</a>";
     if (!alertas.length && !avisos.length) {
-      if (!feedOk) {
-        setHero("error", "Sin conexión con el SMN", "Consultá en <a href='https://www.smn.gob.ar/alertas' target='_blank' rel='noopener'>smn.gob.ar/alertas</a>");
+      if (est === "error") {
+        setHero("error", "Sin conexión con el SMN", "Consultá el " + linkSMN + ".");
+      } else if (est === "parcial") {
+        setHero("error", "Revisando alertas del SMN…", "Todavía no terminamos de leer todas las alertas. Mientras tanto, consultá el " + linkSMN + ".");
+      } else if (est === "desactualizado") {
+        setHero("error", "Datos del SMN desactualizados", "Hace un rato que no pudimos actualizar las alertas. Consultá el " + linkSMN + ".");
       } else {
-        setHero("verde", "Sin alertas vigentes", "El SMN no tiene alertas para Catamarca en este momento." + avisoCorto);
+        setHero("verde", "Sin alertas para Catamarca", "El SMN no informa alertas vigentes ni próximas para la provincia. Ante cualquier duda, mirá el " + linkSMN + ".");
       }
     } else {
       const peor = alertas.reduce((m, a) => (ORDEN[a.nivel || "amarillo"] > ORDEN[m] ? a.nivel || "amarillo" : m), avisos.length ? "naranja" : "amarillo");
@@ -103,7 +109,7 @@ async function cargarOficial() {
       avisos.map((a) => `
         <div class="alerta">
           <div class="al-top"><span class="nivel-pill naranja">Corto plazo</span><h4>${esc(a.titulo)}</h4></div>
-          <p>${esc(a.descripcion)}</p>
+          <p>${esc(a.zonas || a.descripcion)}</p>
           <p class="meta">Emitido ${a.fecha ? esc(fmtHora(a.fecha)) : "–"} ${a.link ? `· <a href="${esc(a.link)}" target="_blank" rel="noopener">ver en SMN</a>` : ""}</p>
         </div>`).join("") +
       alertas.map((a) => `
