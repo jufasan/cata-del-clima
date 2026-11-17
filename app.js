@@ -163,7 +163,10 @@ async function cargarModelos() {
     wind_speed_unit: "kmh",
   });
   try {
-    const r = await fetch(`${base}?${p}`);
+    // Primero por nuestra función (guarda el pronóstico 30 min para todos); si falla, directo a Open-Meteo
+    let r;
+    try { r = await fetch(`/api/modelos?${p}`); if (!r.ok) throw new Error(); }
+    catch { r = await fetch(`${base}?${p}`); }
     if (!r.ok) throw new Error("HTTP " + r.status);
     let d = await r.json();
     if (!Array.isArray(d)) d = [d];
