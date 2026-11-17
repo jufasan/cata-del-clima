@@ -117,6 +117,10 @@ async function cargarOficial() {
         setHero("error", "Sin conexión con el SMN", "Consultá el " + linkSMN + ".");
       } else if (est === "parcial") {
         setHero("error", "Revisando alertas del SMN…", "Todavía no terminamos de leer todas las alertas. Mientras tanto, consultá el " + linkSMN + ".");
+      } else if (est === "smn_caido") {
+        const h = (t) => new Date(t).toLocaleTimeString("es-AR", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+        setHero("error", "El SMN no está respondiendo",
+          `Su sistema de alertas no responde desde las ${d.revisado ? h(d.revisado) : "–"}. Lo seguimos intentando cada 10 minutos${d.ultimoIntento ? ` (último intento: ${h(d.ultimoIntento)})` : ""}. Mientras tanto, revisá el ` + linkSMN + " o las redes del SMN.");
       } else if (est === "desactualizado") {
         setHero("error", "Datos del SMN desactualizados", "Hace un rato que no pudimos actualizar las alertas. Consultá el " + linkSMN + ".");
       } else {
