@@ -45,10 +45,16 @@ export async function onRequestGet(context) {
     resultado.revisado = d.revisado;
     resultado.completo = d.completo;
     resultado.alertas = (d.alertas || []).filter((a) => !a.fin || Date.parse(a.fin) > ahora);
-    resultado.avisosCortoPlazo = d.avisosCortoPlazo || [];
+    // Avisos a corto plazo: solo los de las últimas 3 horas (por si el robot quedó sin actualizar)
+    resultado.avisosCortoPlazo = (d.avisosCortoPlazo || []).filter((a) => !a.fecha || ahora - Date.parse(a.fecha) < 3 * 3600e3);
 
     const minutos = (ahora - Date.parse(d.revisado)) / 60000;
-    if (!(minutos <= MAX_ANTIGUEDAD_MIN)) {
+    resultado.ultimoIntento = d.ultimoIntento || null;
+    const smnFalla = d.errorSMN && d.ultimoIntento && Date.parse(d.ultimoIntento) > Date.parse(d.revisado);
+    if (!(minutos <= MAX_ANTIGUEDAD_MIN) && smnFalla) {
+      resultado.estado.alertas = "smn_caido";
+      resultado.errores.push("El SMN no está respondiendo: " + d.errorSMN);
+    } else if (!(minutos <= MAX_ANTIGUEDAD_MIN)) {
       resultado.estado.alertas = "desactualizado";
       resultado.errores.push(`Los datos del SMN tienen ${Math.round(minutos)} minutos sin actualizarse.`);
     } else if (d.completo === false) {
