@@ -2,19 +2,25 @@
 const TZ = "America/Argentina/Catamarca";
 
 const LOCALIDADES = [
-  // Catamarca
-  { n: "S. F. V. de Catamarca", d: "Capital", lat: -28.469, lon: -65.785, prov: "CAT" },
-  { n: "Valle Viejo", d: "Valle Viejo · Valle Central", lat: -28.48, lon: -65.72, prov: "CAT" },
-  { n: "Recreo", d: "Dpto. La Paz · sudeste", lat: -29.28, lon: -65.06, prov: "CAT" },
+  // Catamarca: una por cada uno de los 16 departamentos (cabecera) + Fiambalá
+  { n: "S. F. V. de Catamarca", d: "Dpto. Capital", lat: -28.469, lon: -65.785, prov: "CAT" },
+  { n: "Valle Viejo", d: "Dpto. Valle Viejo · Valle Central", lat: -28.48, lon: -65.72, prov: "CAT" },
+  { n: "San José", d: "Dpto. Fray Mamerto Esquiú · Valle Central", lat: -28.39, lon: -65.70, prov: "CAT" },
+  { n: "La Puerta", d: "Dpto. Ambato · Valle Central", lat: -28.17, lon: -65.79, prov: "CAT" },
+  { n: "La Merced", d: "Dpto. Paclín · Valle Central", lat: -28.155, lon: -65.665, prov: "CAT" },
+  { n: "Huillapima", d: "Dpto. Capayán · Valle Central", lat: -28.73, lon: -65.98, prov: "CAT" },
+  { n: "Bañado de Ovanta", d: "Dpto. Santa Rosa · este", lat: -28.10, lon: -65.32, prov: "CAT" },
   { n: "El Alto", d: "Dpto. El Alto · este", lat: -28.31, lon: -65.37, prov: "CAT" },
-  { n: "Andalgalá", d: "Dpto. Andalgalá · centro-norte", lat: -27.58, lon: -66.317, prov: "CAT" },
+  { n: "Ancasti", d: "Dpto. Ancasti · este", lat: -28.81, lon: -65.50, prov: "CAT" },
+  { n: "Recreo", d: "Dpto. La Paz · sudeste", lat: -29.28, lon: -65.06, prov: "CAT" },
   { n: "Pomán / Saujil", d: "Dpto. Pomán · centro-oeste", lat: -28.39, lon: -66.22, prov: "CAT" },
+  { n: "Andalgalá", d: "Dpto. Andalgalá · centro-norte", lat: -27.58, lon: -66.317, prov: "CAT" },
   { n: "Belén", d: "Dpto. Belén · oeste", lat: -27.65, lon: -67.03, prov: "CAT" },
   { n: "Santa María", d: "Dpto. Santa María · norte", lat: -26.696, lon: -66.048, prov: "CAT" },
   { n: "Tinogasta", d: "Dpto. Tinogasta · oeste", lat: -28.067, lon: -67.567, prov: "CAT" },
   { n: "Fiambalá", d: "Dpto. Tinogasta · oeste", lat: -27.687, lon: -67.615, prov: "CAT" },
-  { n: "Antofagasta de la Sierra", d: "Puna · noroeste", lat: -26.06, lon: -67.41, prov: "CAT" },
-  // Vecinas
+  { n: "Antofagasta de la Sierra", d: "Dpto. Antofagasta de la Sierra · Puna", lat: -26.06, lon: -67.41, prov: "CAT" },
+  // Provincias vecinas
   { n: "San Miguel de Tucumán", lat: -26.808, lon: -65.218, prov: "Tucumán" },
   { n: "Cafayate", lat: -26.073, lon: -65.976, prov: "Salta" },
   { n: "Santiago del Estero", lat: -27.795, lon: -64.261, prov: "Sgo. del Estero" },
