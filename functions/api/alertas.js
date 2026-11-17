@@ -86,7 +86,7 @@ async function traerVarias(urls, deAPor = 3) {
 // ---------- Alertas CAP ----------
 async function leerAlertasCAP() {
   const errores = [];
-  for (const [nombre, url] of [["SMN", FEED_ALERTAS], ["respaldo (Alert Hub)", FEED_RESPALDO]]) {
+  for (const [nombre, url] of [["SMN", FEED_ALERTAS]]) {
     try {
       const alertas = await leerFeedCAP(url);
       alertas.fuenteUsada = nombre;
@@ -226,32 +226,29 @@ function afectaCatamarca(a) {
 
 // ---------- Diagnóstico: /api/alertas?debug=1 ----------
 async function diagnostico() {
+  // Solo lee la lista del SMN (no abre avisos, para no recibir 429) y muestra su estructura.
   const out = {};
-  for (const [nombre, url] of [["smn", FEED_ALERTAS], ["respaldo", FEED_RESPALDO]]) {
-    const d = { url, muestras: [], alertasAntesDeFiltrar: 0 };
-    try {
-      const feed = await traer(url);
-      const items = extraerItems(feed);
-      d.largoFeed = feed.length;
-      d.comienzoFeed = feed.slice(0, 1200);
-      d.cantidadItems = items.length;
-      d.itemsConCatamarca = items.filter((i) => i.texto.includes("catamarca")).length;
-      const orden = items.slice().sort((x, y) => (y.texto.includes("catamarca") ? 1 : 0) - (x.texto.includes("catamarca") ? 1 : 0));
-      for (const it of orden.slice(0, 4)) {
-        const m = { link: it.link, mencionaCatamarca: it.texto.includes("catamarca") };
-        try {
-          const doc = await traer(it.link);
-          const parsed = parsearCAP(doc);
-          d.alertasAntesDeFiltrar += parsed.length;
-          m.ok = true;
-          m.comienzo = doc.slice(0, 500);
-          m.parseadas = parsed.map((a) => ({ evento: a.evento, nivel: a.nivel, inicio: a.inicio, fin: a.fin, areas: a.areas.slice(0, 6), poligonos: a.poligonos.length, primerPunto: a.poligonos[0]?.[0], afectaCatamarca: afectaCatamarca(a) }));
-        } catch (e) { m.ok = false; m.error = e.message; }
-        d.muestras.push(m);
-      }
-    } catch (e) { d.error = e.message; }
-    out[nombre] = d;
-  }
+  try {
+    const feed = await traer(FEED_ALERTAS);
+    const items = feed.match(/<item[\s\S]*?<\/item>/gi) || [];
+    const deptos = ["catamarca", "valle viejo", "ambato", "ancasti", "andalgal", "belén", "belen", "capayán", "capayan", "el alto", "esquiú", "esquiu", "paclín", "paclin", "pomán", "poman", "santa maría", "santa maria", "tinogasta", "antofagasta de la sierra", "la paz"];
+    const tipos = {};
+    items.forEach((it) => {
+      const l = (it.match(/<link>([^<]+)<\/link>/i) || [])[1] || "";
+      const t = l.split("/").slice(-2, -1)[0] || "?";
+      tipos[t] = (tipos[t] || 0) + 1;
+    });
+    const etiquetas = new Set();
+    items.slice(0, 30).forEach((it) => (it.match(/<([a-zA-Z:]+)[\s>]/g) || []).forEach((x) => etiquetas.add(x.replace(/[<\s>]/g, ""))));
+    const conDepto = items.filter((it) => deptos.some((d) => it.toLowerCase().includes(d)));
+    out.cantidadItems = items.length;
+    out.tiposDeLink = tipos;
+    out.etiquetasUsadas = [...etiquetas];
+    out.ejemplosCompletos = items.slice(0, 2).map((x) => x.slice(0, 3000));
+    out.itemsQueNombranDeptosDeCatamarca = conDepto.length;
+    out.ejemplosConDepto = conDepto.slice(0, 2).map((x) => x.slice(0, 3000));
+    out.ultimoItem = items.length ? items[items.length - 1].slice(0, 2500) : null;
+  } catch (e) { out.error = e.message; }
   return new Response(JSON.stringify(out, null, 2), { headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" } });
 }
 
