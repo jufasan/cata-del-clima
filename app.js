@@ -248,6 +248,16 @@ function frase(a, horas) {
 
 const TXT_NIVEL = { verde: "Sin tormentas", amarillo: "Posible", naranja: "Probable", rojo: "Probable y fuerte" };
 
+// De más complicada a menos: nivel, después coincidencias de tormenta, granizo, viento, lluvia y energía
+function ordenarPorRiesgo(lista) {
+  const puntaje = ({ a }) => [ORDEN[a.nivel], a.tor, a.gra, a.vieF, a.vie, a.llu, a.eneF, a.ene, a.rafMax, a.lluviaMax];
+  return lista.slice().sort((x, y) => {
+    const px = puntaje(x), py = puntaje(y);
+    for (let i = 0; i < px.length; i++) if (py[i] !== px[i]) return py[i] - px[i];
+    return 0;
+  });
+}
+
 function renderModelos() {
   if (!datosModelos) return;
   const horas = +$("#horas").value;
@@ -284,13 +294,13 @@ function renderModelos() {
   const vec = res.filter((x) => x.l.prov !== "CAT");
   // Capital y Valle Viejo arriba; el resto en el desplegable
   $("#tabla-principal").innerHTML = cat.slice(0, 2).map(fila).join("");
-  $("#tabla-catamarca").innerHTML = tabla(cat.slice(2));
+  $("#tabla-catamarca").innerHTML = tabla(ordenarPorRiesgo(cat.slice(2)));
   const otrasAlerta = cat.slice(2).filter((x) => x.a.nivel === "naranja" || x.a.nivel === "rojo").map((x) => x.l.n);
   const resumenMas = document.querySelector("#mas-localidades summary span");
   if (resumenMas) resumenMas.innerHTML = otrasAlerta.length
     ? `Ver otras localidades · <b>${esc(otrasAlerta.length)} con tormenta probable</b>`
     : "Ver otras localidades de Catamarca y provincias vecinas";
-  $("#tabla-vecinas").innerHTML = tabla(vec);
+  $("#tabla-vecinas").innerHTML = tabla(ordenarPorRiesgo(vec));
 
   const peor = cat.reduce((m, x) => (ORDEN[x.a.nivel] > ORDEN[m.a.nivel] ? x : m), cat[0]);
   const conTormenta = cat.filter((x) => x.a.nivel === "naranja" || x.a.nivel === "rojo").map((x) => x.l.n);
