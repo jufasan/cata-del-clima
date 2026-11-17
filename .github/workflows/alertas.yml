@@ -1,0 +1,40 @@
+name: Alertas SMN
+
+# Cada 10 minutos (GitHub puede demorar algunos minutos el arranque) y también a mano.
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: alertas-smn
+  cancel-in-progress: false
+
+jobs:
+  alertas:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Traer los datos anteriores (rama "datos")
+        run: |
+          git clone --depth 1 --branch datos "https://github.com/${{ github.repository }}.git" datos || mkdir -p datos
+          rm -rf datos/.git
+
+      - name: Leer el SMN
+        run: python3 scripts/smn_alertas.py datos
+
+      - name: Guardar en la rama "datos"
+        run: |
+          cd datos
+          git init -q
+          git checkout -q -b datos
+          git config user.name "cata-del-clima-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Alertas SMN $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push -q -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" datos
