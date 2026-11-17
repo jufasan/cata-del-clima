@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="styles.css?v=20261117d">
+  <link rel="stylesheet" href="styles.css?v=20261117e">
 </head>
 <body>
   <div class="app">
@@ -74,6 +74,7 @@
           <span class="hero-tag">Alerta oficial · SMN</span>
         </div>
         <div class="hero-big" id="hero-big">Consultando…</div>
+        <div class="hero-zonas" id="hero-zonas" style="display:none"></div>
         <div class="hero-sub" id="hero-sub">Servicio Meteorológico Nacional</div>
       </div>
       <a class="btn-smn" href="https://www.smn.gob.ar/alertas" target="_blank" rel="noopener">Ver el mapa oficial de alertas del SMN ↗</a>
@@ -108,6 +109,7 @@
           <div class="nivel"><span class="pill-demo naranja">Probable</span><span>2 o 3 modelos coinciden en tormenta, ráfagas de 70 km/h o más, o lluvia fuerte.</span></div>
           <div class="nivel"><span class="pill-demo rojo">Probable y fuerte</span><span>2 o 3 modelos coinciden en tormenta con posible granizo, o en ráfagas de 90 km/h o más.</span></div>
         </div>
+        <p><b>El SMN manda:</b> si el Servicio Meteorológico Nacional emite una alerta o un aviso para un departamento, su tarjeta pasa arriba, dice <b>"Alerta SMN"</b> y toma el color de la alerta oficial, aunque los modelos muestren menos.</p>
         <p class="small">Mostramos una localidad por cada uno de los 16 departamentos de Catamarca (más Fiambalá), porque el tiempo cambia mucho de una zona a otra. Abajo también aparecen ciudades de provincias vecinas: las tormentas suelen llegar desde ahí.</p>
         <details class="como">
           <summary>Detalle técnico del cálculo</summary>
@@ -187,6 +189,6 @@
   </nav>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="app.js?v=20261117d"></script>
+  <script src="app.js?v=20261117e"></script>
 </body>
 </html>

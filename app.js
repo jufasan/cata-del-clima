@@ -29,6 +29,8 @@ const LOCALIDADES = [
   { n: "Deán Funes", lat: -30.42, lon: -64.35, prov: "Córdoba" },
 ];
 
+LOCALIDADES.forEach((l) => { const m = (l.d || "").match(/Dpto\. ([^·]+)/); if (m) l.dep = m[1].trim(); });
+
 const MODELOS = [
   { id: "ecmwf_ifs025", n: "ECMWF" },
   { id: "gfs_seamless", n: "GFS" },
@@ -67,10 +69,35 @@ function cuando(a) {
   return { activa: true, corto: !isNaN(fin) ? `vigente hasta ${dia(fin)} ${hora(fin)}` : "vigente", largo: `Rige ahora${!isNaN(fin) ? ` hasta ${dia(fin)} a las ${hora(fin)}` : ""}.` };
 }
 
+// ---------- Departamentos: unir alertas del SMN con las tarjetas ----------
+const DEPTOS = ["Capital", "Valle Viejo", "Fray Mamerto Esquiú", "Ambato", "Paclín", "Capayán", "Santa Rosa", "El Alto",
+  "Ancasti", "La Paz", "Pomán", "Andalgalá", "Belén", "Santa María", "Tinogasta", "Antofagasta de la Sierra"];
+const norm = (t) => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+function deptosEn(texto) {
+  const t = " " + norm(texto).replace(/[^a-z0-9]+/g, " ") + " ";
+  const res = DEPTOS.filter((d) => t.includes(" " + norm(d) + " "));
+  if (/ san fernando /.test(t) && !res.includes("Capital")) res.push("Capital");
+  return res;
+}
+// Zonas de un aviso a corto plazo: "CATAMARCA: Ancasti - Capayan - La Paz." → ["Ancasti", "Capayán", "La Paz"]
+function zonasAviso(a) {
+  const txt = String(a.zonas || "").replace(/^\s*catamarca\s*:\s*/i, "").replace(/\.\s*$/, "");
+  return txt.split(/\s+-\s+|,\s*/).map((z) => deptosEn(z)[0] || z.trim()).filter(Boolean);
+}
+function deptosAlerta(a) {
+  return [...new Set(deptosEn([...(a.localidades || []), ...(a.areas || [])].join(" , ")))];
+}
+const oracion = (t) => { const x = String(t || "").toLowerCase(); return x.charAt(0).toUpperCase() + x.slice(1); };
+let OFICIAL = {}; // departamento → { nivel, tipo }
+const nivelAviso = (avs) => (avs.some((a) => /sever/i.test(a.titulo)) ? "rojo" : "naranja");
+
 // ---------- 1. Alertas oficiales ----------
 async function cargarOficial() {
   const box = $("#estado-oficial");
-  const setHero = (clase, big, sub) => { box.className = "hero " + clase; $("#hero-big").innerHTML = big; $("#hero-sub").innerHTML = sub; };
+  const setHero = (clase, big, sub, zonas = "") => {
+    box.className = "hero " + clase; $("#hero-big").innerHTML = big; $("#hero-sub").innerHTML = sub;
+    const z = $("#hero-zonas"); if (z) { z.innerHTML = zonas; z.style.display = zonas ? "" : "none"; }
+  };
   try {
     const r = await fetch("/api/alertas", { cache: "no-store" });
     if (!r.ok) throw new Error("HTTP " + r.status);
@@ -96,19 +123,28 @@ async function cargarOficial() {
         setHero("neutro", "El feed del SMN no informa alertas para Catamarca", "Ojo: el feed abierto del SMN a veces no incluye todas las alertas de su mapa. Confirmalo siempre en el " + linkSMN + ".");
       }
     } else {
-      const peor = alertas.reduce((m, a) => (ORDEN[a.nivel || "amarillo"] > ORDEN[m] ? a.nivel || "amarillo" : m), avisos.length ? "naranja" : "amarillo");
+      const peor = alertas.reduce((m, a) => (ORDEN[a.nivel || "amarillo"] > ORDEN[m] ? a.nivel || "amarillo" : m), avisos.length ? nivelAviso(avisos) : "amarillo");
       const n = alertas.length + avisos.length;
-      const eventos = [...new Set(alertas.map((a) => a.evento).filter(Boolean))].join(", ");
+      const eventos = [...new Set([...avisos.map((a) => oracion(a.titulo)), ...alertas.map((a) => a.evento)].filter(Boolean))].join(" · ");
       const col = { amarillo: ["amarilla", "amarillas"], naranja: ["naranja", "naranja"], rojo: ["roja", "rojas"] }[peor];
       const activas = alertas.filter((a) => cuando(a).activa);
       const prox = alertas.find((a) => !cuando(a).activa);
-      let sub;
-      if (avisos.length) sub = "Aviso a corto plazo vigente";
-      else if (activas.length) sub = `Rige ahora · ${cuando(activas[0]).corto.replace("vigente ", "")}`;
-      else if (prox) sub = `Todavía no empezó · rige ${cuando(prox).corto}`;
+      let cuandoTxt;
+      if (avisos.length) cuandoTxt = "Aviso a corto plazo: rige ahora";
+      else if (activas.length) cuandoTxt = `Rige ahora · ${cuando(activas[0]).corto.replace("vigente ", "")}`;
+      else if (prox) cuandoTxt = `Todavía no empezó · rige ${cuando(prox).corto}`;
+      const zonas = [...new Set([...avisos.flatMap(zonasAviso), ...alertas.flatMap(deptosAlerta)])];
       setHero(peor, n === 1 ? `1 alerta ${col[0]}` : `${n} alertas ${col[1]}`,
-        `${esc(eventos || "Avisos a corto plazo")} · ${esc(sub || "afecta a Catamarca")}`);
+        `${esc(eventos)}${cuandoTxt ? `<br><b>${esc(cuandoTxt)}</b>` : ""}`,
+        zonas.length ? `📍 ${zonas.map(esc).join(" · ")}` : "");
     }
+
+    // Unir con las tarjetas: cada departamento con alerta oficial
+    OFICIAL = {};
+    const marcar = (dep, nivel, tipo) => { if (!OFICIAL[dep] || ORDEN[nivel] > ORDEN[OFICIAL[dep].nivel]) OFICIAL[dep] = { nivel, tipo }; };
+    avisos.forEach((a) => zonasAviso(a).forEach((dep) => marcar(dep, nivelAviso([a]), "aviso a corto plazo")));
+    alertas.forEach((a) => deptosAlerta(a).forEach((dep) => marcar(dep, a.nivel || "amarillo", `alerta ${a.nivel || ""} por ${String(a.evento || "").toLowerCase()}`.replace(/\s+/g, " "))));
+    if (datosModelos) renderModelos();
 
     // Si el SMN emite una alerta para Catamarca, el bloque oficial pasa arriba de todo
     const hayAlerta = alertas.length > 0 || avisos.length > 0;
@@ -130,17 +166,18 @@ async function cargarOficial() {
     lista.innerHTML =
       avisos.map((a) => `
         <div class="alerta">
-          <div class="al-top"><span class="nivel-pill naranja">Corto plazo</span><h4>${esc(a.titulo)}</h4></div>
-          <p>${esc(a.zonas || a.descripcion)}</p>
+          <div class="al-top"><span class="nivel-pill ${nivelAviso([a])}">Corto plazo</span><span class="estado-al ahora">Rige ahora</span></div>
+          <h4 class="al-titulo">${esc(oracion(a.titulo))}</h4>
+          <p class="zonas-al">📍 ${esc(zonasAviso(a).join(" · ") || a.descripcion)}</p>
           <p class="meta">Emitido ${a.fecha ? esc(fmtHora(a.fecha)) : "–"} ${a.link ? `· <a href="${esc(a.link)}" target="_blank" rel="noopener">ver en SMN</a>` : ""}</p>
         </div>`).join("") +
       alertas.map((a) => `
         <div class="alerta">
           <div class="al-top"><span class="nivel-pill ${esc(a.nivel || "amarillo")}">${esc(a.nivel || "alerta")}</span><h4>${esc(a.evento || a.titulo)}</h4><span class="estado-al ${cuando(a).activa ? "ahora" : "prox"}">${cuando(a).activa ? "Rige ahora" : "Próxima"}</span></div>
+          <p class="zonas-al">📍 ${esc((deptosAlerta(a).length ? deptosAlerta(a) : a.areas).join(" · ") || "Catamarca")}</p>
           <p class="cuando">🕒 ${esc(cuando(a).largo)}</p>
           ${a.descripcion ? `<p>${esc(a.descripcion)}</p>` : ""}
           ${a.instruccion ? `<p><i>${esc(a.instruccion)}</i></p>` : ""}
-          <p class="meta">📍 ${esc(a.areas.join(", ") || "–")}</p>
         </div>`).join("");
 
     dibujarPoligonos(alertas);
@@ -267,7 +304,7 @@ const TXT_NIVEL = { verde: "Sin tormentas", amarillo: "Posible", naranja: "Proba
 
 // De más complicada a menos: nivel, después coincidencias de tormenta, granizo, viento, lluvia y energía
 function ordenarPorRiesgo(lista) {
-  const puntaje = ({ a }) => [ORDEN[a.nivel], a.tor, a.gra, a.vieF, a.vie, a.llu, a.eneF, a.ene, a.rafMax, a.lluviaMax];
+  const puntaje = ({ a }) => [a.oficial ? 1 + ORDEN[a.oficial.nivel] : 0, ORDEN[a.nivel], a.tor, a.gra, a.vieF, a.vie, a.llu, a.eneF, a.ene, a.rafMax, a.lluviaMax];
   return lista.slice().sort((x, y) => {
     const px = puntaje(x), py = puntaje(y);
     for (let i = 0; i < px.length; i++) if (py[i] !== px[i]) return py[i] - px[i];
@@ -279,6 +316,14 @@ function renderModelos() {
   if (!datosModelos) return;
   const horas = +$("#horas").value;
   const res = LOCALIDADES.map((l, i) => ({ l, a: analizar(datosModelos[i], horas) }));
+  // El SMN pesa más que los modelos: un departamento con alerta oficial sube a ese nivel
+  res.forEach(({ l, a }) => {
+    const of = l.dep && OFICIAL[l.dep];
+    if (!of) return;
+    a.oficial = of;
+    a.nivelModelos = a.nivel;
+    if (ORDEN[of.nivel] > ORDEN[a.nivel]) a.nivel = of.nivel;
+  });
 
   const fila = ({ l, a }) => {
     const sen = [];
@@ -293,9 +338,10 @@ function renderModelos() {
     return `<div class="loc-card ${a.nivel}">
       <div class="loc-top">
         <div><div class="loc-n">${esc(l.n)}</div><div class="loc-p">${esc(l.prov !== "CAT" ? l.prov : l.d || "")}</div></div>
-        <span class="pill">${TXT_NIVEL[a.nivel]}</span>
+        <span class="pill">${a.oficial ? "Alerta SMN" : TXT_NIVEL[a.nivel]}</span>
       </div>
-      <div class="frase">${frase(a, horas)}</div>
+      ${a.oficial ? `<div class="oficial-banner">⚠️ <b>Alerta oficial del SMN</b> · ${esc(a.oficial.tipo)}</div>` : ""}
+      <div class="frase">${a.oficial ? "Modelos: " : ""}${frase({ ...a, nivel: a.nivelModelos || a.nivel }, horas)}</div>
       <div class="detalle">
         ${sen.length ? `<div class="chips">${sen.join("")}</div>` : ""}
         ${quien}
@@ -312,10 +358,12 @@ function renderModelos() {
   // Capital y Valle Viejo arriba; el resto en el desplegable
   $("#tabla-principal").innerHTML = cat.slice(0, 2).map(fila).join("");
   $("#tabla-catamarca").innerHTML = tabla(ordenarPorRiesgo(cat.slice(2)));
-  const otrasAlerta = cat.slice(2).filter((x) => x.a.nivel === "naranja" || x.a.nivel === "rojo").map((x) => x.l.n);
+  const otrasOficial = cat.slice(2).filter((x) => x.a.oficial).length;
+  const otrasAlerta = cat.slice(2).filter((x) => !x.a.oficial && (x.a.nivel === "naranja" || x.a.nivel === "rojo")).map((x) => x.l.n);
   const resumenMas = document.querySelector("#mas-localidades summary span");
-  if (resumenMas) resumenMas.innerHTML = otrasAlerta.length
-    ? `Ver otras localidades · <b>${esc(otrasAlerta.length)} con tormenta probable</b>`
+  const partes = [otrasOficial && `${otrasOficial} con alerta del SMN`, otrasAlerta.length && `${otrasAlerta.length} con tormenta probable`].filter(Boolean);
+  if (resumenMas) resumenMas.innerHTML = partes.length
+    ? `Ver otras localidades · <b>${esc(partes.join(" · "))}</b>`
     : "Ver otras localidades de Catamarca y provincias vecinas";
   $("#tabla-vecinas").innerHTML = tabla(ordenarPorRiesgo(vec));
 
