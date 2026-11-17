@@ -111,6 +111,14 @@ async function cargarOficial() {
     if (hayAlerta && !oficialEstaArriba) secCiu.before(secOf);
     if (!hayAlerta && oficialEstaArriba) $("#modelos").after(secOf);
     secOf.classList.toggle("compacto", !hayAlerta);
+    // El botón central de la barra toma el color del estado oficial
+    const navAl = document.getElementById("nav-alertas");
+    if (navAl) {
+      const niv = hayAlerta ? alertas.reduce((m, a) => (ORDEN[a.nivel || "amarillo"] > ORDEN[m] ? a.nivel || "amarillo" : m), avisos.length ? "naranja" : "amarillo") : "";
+      navAl.classList.remove("alerta-amarillo", "alerta-naranja", "alerta-rojo");
+      if (niv) navAl.classList.add("alerta-" + niv);
+      navAl.setAttribute("aria-label", hayAlerta ? `Alerta ${niv} del SMN para Catamarca` : "Alertas oficiales del SMN");
+    }
 
     const lista = $("#lista-alertas");
     lista.innerHTML =
