@@ -300,6 +300,15 @@ function frase(a, horas) {
   return `${a.tor} de ${n} modelos coinciden en tormenta${a.gra >= 2 ? " con posible granizo" : ""}${a.vieF >= 2 ? " y ráfagas de 90 km/h o más" : ""}. Es probable y podría ser fuerte.`;
 }
 
+// Frase de la tarjeta cuando hay alerta oficial: el SMN manda, los modelos complementan
+function fraseConOficial(a, horas) {
+  if (!a.oficial) return frase(a, horas);
+  const nm = a.nivelModelos || a.nivel;
+  if (nm === "verde") return `Los modelos todavía no muestran tormenta acá, pero el SMN emitió la alerta. <b>Seguí la indicación oficial.</b>`;
+  if (nm === "amarillo") return `Los modelos muestran una señal débil y el SMN emitió la alerta. <b>Seguí la indicación oficial.</b>`;
+  return `Los modelos coinciden con el SMN: ${frase({ ...a, nivel: nm }, horas).charAt(0).toLowerCase()}${frase({ ...a, nivel: nm }, horas).slice(1)}`;
+}
+
 const TXT_NIVEL = { verde: "Sin tormentas", amarillo: "Posible", naranja: "Probable", rojo: "Probable y fuerte" };
 
 // De más complicada a menos: nivel, después coincidencias de tormenta, granizo, viento, lluvia y energía
@@ -341,7 +350,7 @@ function renderModelos() {
         <span class="pill">${a.oficial ? "Alerta SMN" : TXT_NIVEL[a.nivel]}</span>
       </div>
       ${a.oficial ? `<div class="oficial-banner">⚠️ <b>Alerta oficial del SMN</b> · ${esc(a.oficial.tipo)}</div>` : ""}
-      <div class="frase">${a.oficial ? "Modelos: " : ""}${frase({ ...a, nivel: a.nivelModelos || a.nivel }, horas)}</div>
+      <div class="frase">${fraseConOficial(a, horas)}</div>
       <div class="detalle">
         ${sen.length ? `<div class="chips">${sen.join("")}</div>` : ""}
         ${quien}
