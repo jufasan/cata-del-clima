@@ -87,7 +87,7 @@ async function cargarOficial() {
       } else if (est === "desactualizado") {
         setHero("error", "Datos del SMN desactualizados", "Hace un rato que no pudimos actualizar las alertas. Consultá el " + linkSMN + ".");
       } else {
-        setHero("verde", "Sin alertas para Catamarca", "El SMN no informa alertas vigentes ni próximas para la provincia. Ante cualquier duda, mirá el " + linkSMN + ".");
+        setHero("neutro", "El feed del SMN no informa alertas para Catamarca", "Ojo: el feed abierto del SMN a veces no incluye todas las alertas de su mapa. Confirmalo siempre en el " + linkSMN + ".");
       }
     } else {
       const peor = alertas.reduce((m, a) => (ORDEN[a.nivel || "amarillo"] > ORDEN[m] ? a.nivel || "amarillo" : m), avisos.length ? "naranja" : "amarillo");
@@ -103,6 +103,14 @@ async function cargarOficial() {
       setHero(peor, n === 1 ? `1 alerta ${col[0]}` : `${n} alertas ${col[1]}`,
         `${esc(eventos || "Avisos a corto plazo")} · ${esc(sub || "afecta a Catamarca")}`);
     }
+
+    // Si el SMN emite una alerta para Catamarca, el bloque oficial pasa arriba de todo
+    const hayAlerta = alertas.length > 0 || avisos.length > 0;
+    const secOf = $("#oficial"), secCiu = $("#ciudades");
+    const oficialEstaArriba = !!(secOf.compareDocumentPosition(secCiu) & Node.DOCUMENT_POSITION_FOLLOWING);
+    if (hayAlerta && !oficialEstaArriba) secCiu.before(secOf);
+    if (!hayAlerta && oficialEstaArriba) $("#modelos").after(secOf);
+    secOf.classList.toggle("compacto", !hayAlerta);
 
     const lista = $("#lista-alertas");
     lista.innerHTML =
@@ -261,17 +269,27 @@ function renderModelos() {
         <span class="pill">${TXT_NIVEL[a.nivel]}</span>
       </div>
       <div class="frase">${frase(a, horas)}</div>
-      ${sen.length ? `<div class="chips">${sen.join("")}</div>` : ""}
-      ${quien}
-      ${a.primera ? `<div class="small">Primera señal de tormenta: <b>${esc(fmtHora(a.primera))}</b></div>` : ""}
-      <div class="small">Máximos: lluvia ${a.lluviaMax.toFixed(0)} mm · ráfagas ${a.rafMax.toFixed(0)} km/h · energía ${a.capeMax.toFixed(0)} J/kg</div>
+      <div class="detalle">
+        ${sen.length ? `<div class="chips">${sen.join("")}</div>` : ""}
+        ${quien}
+        ${a.primera ? `<div class="small">Primera señal de tormenta: <b>${esc(fmtHora(a.primera))}</b></div>` : ""}
+        <div class="small">Máximos: lluvia ${a.lluviaMax.toFixed(0)} mm · ráfagas ${a.rafMax.toFixed(0)} km/h · energía ${a.capeMax.toFixed(0)} J/kg</div>
+      </div>
+      <button class="ver-detalle" type="button">Ver detalle ▾</button>
     </div>`;
   };
-  const tabla = (filas) => `<p class="grid-nota">Los números (por ejemplo 2/3) indican cuántos de los 3 modelos ven ese fenómeno.</p><div class="grid">${filas.map(fila).join("")}</div>`;
+  const tabla = (filas) => `<div class="grid">${filas.map(fila).join("")}</div>`;
 
   const cat = res.filter((x) => x.l.prov === "CAT");
   const vec = res.filter((x) => x.l.prov !== "CAT");
-  $("#tabla-catamarca").innerHTML = tabla(cat);
+  // Capital y Valle Viejo arriba; el resto en el desplegable
+  $("#tabla-principal").innerHTML = cat.slice(0, 2).map(fila).join("");
+  $("#tabla-catamarca").innerHTML = tabla(cat.slice(2));
+  const otrasAlerta = cat.slice(2).filter((x) => x.a.nivel === "naranja" || x.a.nivel === "rojo").map((x) => x.l.n);
+  const resumenMas = document.querySelector("#mas-localidades summary span");
+  if (resumenMas) resumenMas.innerHTML = otrasAlerta.length
+    ? `Ver otras localidades · <b>${esc(otrasAlerta.length)} con tormenta probable</b>`
+    : "Ver otras localidades de Catamarca y provincias vecinas";
   $("#tabla-vecinas").innerHTML = tabla(vec);
 
   const peor = cat.reduce((m, x) => (ORDEN[x.a.nivel] > ORDEN[m.a.nivel] ? x : m), cat[0]);
@@ -280,11 +298,11 @@ function renderModelos() {
   const box = $("#resumen-modelos");
   box.className = "resumen " + peor.a.nivel;
   renderTiles(cat, horas);
-  box.innerHTML = conTormenta.length
+  box.innerHTML = "<span>" + (conTormenta.length
     ? `En las próximas ${horas} h, al menos 2 de los 3 modelos coinciden en tormenta, viento o lluvia fuerte en: <b>${esc(lista(conTormenta))}</b>.`
     : peor.a.nivel === "verde"
       ? `En las próximas ${horas} h, ningún modelo ve tormentas ni tiempo severo en Catamarca.`
-      : `En las próximas ${horas} h no hay tormentas en las que coincidan 2 o más modelos. Señales de tormenta posible en: ${esc(lista(posibles))}.`;
+      : `En las próximas ${horas} h no hay tormentas en las que coincidan 2 o más modelos. Señales de tormenta posible en: ${esc(lista(posibles))}.`) + "</span>";
 
   dibujarMarcadores(res);
 }
@@ -431,6 +449,11 @@ document.addEventListener("DOMContentLoaded", () => {
   tabs("[data-sat]", "sat", cargarSatelite);
   tabs("[data-windy]", "windy", cargarWindy);
   $("#horas").addEventListener("change", renderModelos);
+  $("#tabla-principal").addEventListener("click", (e) => {
+    const b = e.target.closest(".ver-detalle"); if (!b) return;
+    const c = b.closest(".loc-card"); c.classList.toggle("abierta");
+    b.textContent = c.classList.contains("abierta") ? "Ocultar detalle ▴" : "Ver detalle ▾";
+  });
   $("#sat-img").addEventListener("click", abrirVisor);
   $("#visor-cerrar").addEventListener("click", cerrarVisor);
   $("#visor").addEventListener("click", (e) => { if (e.target.id === "visor") cerrarVisor(); });
@@ -442,8 +465,9 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   // Resalta la sección visible en la barra inferior
   const navLinks = [...document.querySelectorAll(".bottom-nav a")];
-  const ids = ["oficial", "modelos", "satelite", "mapa-vivo", "info"];
-  const marcar = (id) => navLinks.forEach((a) => a.classList.toggle("activo", a.getAttribute("href") === "#" + id));
+  const ids = ["ciudades", "modelos", "oficial", "mapa-localidades", "satelite", "mapa-vivo", "info"];
+  const mapaNav = { modelos: "ciudades", "mapa-localidades": "ciudades" }; // secciones sin ícono propio
+  const marcar = (id) => { id = mapaNav[id] || id; navLinks.forEach((a) => a.classList.toggle("activo", a.getAttribute("href") === "#" + id)); };
   let bloqueo = 0;
   navLinks.forEach((a) => a.addEventListener("click", () => {
     marcar(a.getAttribute("href").slice(1));
@@ -452,13 +476,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const alScroll = () => {
     if (Date.now() < bloqueo) return;
     const fin = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4;
-    if (window.scrollY < 40) return marcar(ids[0]);
-    if (fin) return marcar(ids[ids.length - 1]);
-    let actual = ids[0];
-    for (const id of ids) {
-      const el = document.getElementById(id);
-      if (el && el.getBoundingClientRect().top <= window.innerHeight * 0.35) actual = id;
-    }
+    const orden = ids.map((id) => document.getElementById(id)).filter(Boolean).sort((x, y) => x.getBoundingClientRect().top - y.getBoundingClientRect().top);
+    if (window.scrollY < 40) return marcar(orden[0].id);
+    if (fin) return marcar(orden[orden.length - 1].id);
+    let actual = orden[0].id;
+    for (const el of orden) if (el.getBoundingClientRect().top <= window.innerHeight * 0.35) actual = el.id;
     marcar(actual);
   };
   window.addEventListener("scroll", alScroll, { passive: true });

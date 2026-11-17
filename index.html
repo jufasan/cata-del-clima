@@ -23,17 +23,50 @@
       <div class="top-txt">
         <h1>Cata del Clima</h1>
         <p>Catamarca, catá el clima antes de salir</p>
+        <p class="credito-mini">Un proyecto del <b>Instituto Cecilia Grierson</b> <span class="sep">|</span> <b>La Carrillo</b></p>
       </div>
       <button class="icon-btn" id="refrescar" aria-label="Actualizar">
         <svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>
       </button>
     </header>
 
-    <div class="credito">
-      <span>Un proyecto del</span> <b>Instituto Cecilia Grierson</b> <span class="sep">|</span> <b>La Carrillo</b>
-    </div>
 
-    <!-- 1. Alertas oficiales -->
+    <!-- 1. Pronóstico en Capital y Valle Viejo -->
+    <section id="ciudades">
+      <div class="sec-head">
+        <h2>Pronóstico en tu zona</h2>
+        <select id="horas" aria-label="Período">
+          <option value="12">12 h</option>
+          <option value="24" selected>24 h</option>
+          <option value="48">48 h</option>
+        </select>
+      </div>
+      <p class="nota">Pronóstico de 3 modelos internacionales. <b>No es una alerta oficial</b>. Los números (2/3) indican cuántos coinciden. <a href="#guia">¿Cómo leerlo?</a></p>
+      <div id="tabla-principal" class="grid grid-principal"></div>
+      <details class="mas" id="mas-localidades">
+        <summary><span>Ver otras localidades de Catamarca y provincias vecinas</span><span class="flecha">▾</span></summary>
+        <h3>Resto de Catamarca</h3>
+        <div id="tabla-catamarca"></div>
+        <h3>Provincias vecinas <small>lo que puede venir</small></h3>
+        <div id="tabla-vecinas"></div>
+      </details>
+    </section>
+
+    <!-- 2. Resumen de los modelos -->
+    <section id="modelos">
+      <div class="sec-head"><h2>Qué muestran los modelos</h2></div>
+      <div id="tiles" class="tiles">
+        <div class="tile lima"><span class="badge-ic">⛈️</span><div class="t-wrap"><div class="t-num">–</div><div class="t-lbl">Tormenta</div></div></div>
+        <div class="tile turquesa"><span class="badge-ic">🧊</span><div class="t-wrap"><div class="t-num">–</div><div class="t-lbl">Granizo posible</div></div></div>
+        <div class="tile coral"><span class="badge-ic">💨</span><div class="t-wrap"><div class="t-num">–</div><div class="t-lbl">Ráfagas máx.</div></div></div>
+        <div class="tile celeste"><span class="badge-ic">🌧️</span><div class="t-wrap"><div class="t-num">–</div><div class="t-lbl">Lluvia máx.</div></div></div>
+      </div>
+
+      <div id="resumen-modelos" class="resumen cargando">Cargando modelos…</div>
+
+    </section>
+
+    <!-- 3. Alertas oficiales del SMN (sube arriba de todo si hay una alerta para Catamarca) -->
     <section id="oficial">
       <div id="estado-oficial" class="hero cargando">
         <div class="hero-top">
@@ -49,38 +82,16 @@
       <p class="fuente">Fuente: <a href="https://www.smn.gob.ar/alertas" target="_blank" rel="noopener">SMN – Sistema de Alerta Temprana</a> (feed CAP oficial) · Revisado <span id="hora-oficial">–</span></p>
     </section>
 
-    <!-- 2. Modelos -->
-    <section id="modelos">
-      <div class="sec-head">
-        <h2>Qué muestran los modelos</h2>
-        <select id="horas" aria-label="Período">
-          <option value="12">12 h</option>
-          <option value="24" selected>24 h</option>
-          <option value="48">48 h</option>
-        </select>
-      </div>
-      <p class="nota">Comparamos 3 modelos de pronóstico internacionales (ECMWF, GFS e ICON) en distintas zonas de Catamarca. <b>No es una alerta oficial</b>: cuantos más modelos coinciden, más confiable es. <a href="#guia">¿Cómo leerlo?</a></p>
 
-      <div id="tiles" class="tiles">
-        <div class="tile lima"><span class="badge-ic">⛈️</span><div class="t-num">–</div><div class="t-lbl">Tormenta</div></div>
-        <div class="tile turquesa"><span class="badge-ic">🧊</span><div class="t-num">–</div><div class="t-lbl">Granizo posible</div></div>
-        <div class="tile coral"><span class="badge-ic">💨</span><div class="t-num">–</div><div class="t-lbl">Ráfagas máx.</div></div>
-        <div class="tile celeste"><span class="badge-ic">🌧️</span><div class="t-num">–</div><div class="t-lbl">Lluvia máx.</div></div>
-      </div>
-
-      <div id="resumen-modelos" class="resumen cargando">Cargando modelos…</div>
-
+    <!-- 4. Mapa de localidades y guía -->
+    <section id="mapa-localidades">
+      <div class="sec-head"><h2>Mapa de localidades</h2></div>
       <div class="card-dark map-card">
         <div id="mapa" aria-label="Mapa de localidades"></div>
         <div class="leyenda">
           <span><i class="dot verde"></i>Sin tormentas</span><span><i class="dot amarillo"></i>Posible</span><span><i class="dot naranja"></i>Probable</span><span><i class="dot rojo"></i>Probable y fuerte</span>
         </div>
       </div>
-
-      <h3>Catamarca</h3>
-      <div id="tabla-catamarca"></div>
-      <h3>Provincias vecinas <small>lo que puede venir</small></h3>
-      <div id="tabla-vecinas"></div>
 
       <div class="card-dark guia" id="guia">
         <h3>Cómo leer estas tarjetas</h3>
@@ -168,8 +179,8 @@
   </div>
 
   <nav class="bottom-nav" aria-label="Secciones">
-    <a href="#oficial" class="activo"><svg viewBox="0 0 24 24"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17h.01"/></svg><span>Alertas</span></a>
-    <a href="#modelos"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Modelos</span></a>
+    <a href="#ciudades" class="activo"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Pronóstico</span></a>
+    <a href="#oficial"><svg viewBox="0 0 24 24"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17h.01"/></svg><span>Alertas</span></a>
     <a href="#satelite" class="centro" aria-label="Satélite"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></a>
     <a href="#mapa-vivo"><svg viewBox="0 0 24 24"><path d="m9 4-6 2v14l6-2 6 2 6-2V4l-6 2-6-2Z"/><path d="M9 4v14M15 6v14"/></svg><span>Mapa</span></a>
     <a href="#info"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01"/></svg><span>Info</span></a>
