@@ -29,6 +29,31 @@ CATAMARCA = [
 ]
 
 
+# Localidades de referencia: una alerta "afecta a Catamarca" si alguna queda dentro de su polígono.
+LOCALIDADES = [
+    ("San Fernando del Valle de Catamarca", -28.469, -65.785), ("Valle Viejo", -28.48, -65.72),
+    ("Fray Mamerto Esquiú", -28.40, -65.70), ("Paclín", -28.22, -65.63), ("Ambato", -28.10, -65.85),
+    ("Santa Rosa", -28.10, -65.32), ("El Alto", -28.31, -65.37), ("Ancasti", -28.81, -65.50),
+    ("La Paz (Recreo)", -29.28, -65.06), ("Capayán (Huillapima)", -28.73, -65.98),
+    ("Pomán", -28.39, -66.22), ("Andalgalá", -27.58, -66.317), ("Belén", -27.65, -67.03),
+    ("Santa María", -26.696, -66.048), ("Tinogasta", -28.067, -67.567), ("Fiambalá", -27.687, -67.615),
+    ("Antofagasta de la Sierra", -26.06, -67.41),
+]
+
+
+def grilla_catamarca(paso=0.2):
+    pts = []
+    lat = -30.1
+    while lat <= -25.1:
+        lon = -68.6
+        while lon <= -64.8:
+            if dentro(lat, lon):
+                pts.append((lat, lon))
+            lon += paso
+        lat += paso
+    return pts
+
+
 def traer(url, reintentos=3):
     espera = 10
     for intento in range(reintentos + 1):
@@ -124,18 +149,24 @@ def parsear_cap(xml):
     return salida
 
 
+def localidades_afectadas(a):
+    """Devuelve (localidades dentro del polígono, puntos de la grilla de Catamarca dentro)."""
+    locs, n_grilla = set(), 0
+    for pol in a["poligonos"]:
+        poly = [tuple(p) for p in pol]
+        for nombre, la, lo in LOCALIDADES:
+            if dentro(la, lo, poly):
+                locs.add(nombre)
+        n_grilla += sum(1 for la, lo in GRILLA if dentro(la, lo, poly))
+    return [n for n, _, _ in LOCALIDADES if n in locs], n_grilla
+
+
 def afecta_catamarca(a):
     texto = " ".join(a["areas"] + a["geocodes"] + [a["titulo"]]).lower()
     if "catamarca" in texto:
         return True
-    for pol in a["poligonos"]:
-        lat = sum(p[0] for p in pol) / len(pol)
-        lon = sum(p[1] for p in pol) / len(pol)
-        if dentro(lat, lon):
-            return True
-        if sum(1 for p in pol if dentro(p[0], p[1])) >= max(3, len(pol) * 0.3):
-            return True
-    return False
+    locs, n_grilla = localidades_afectadas(a)
+    return bool(locs) or n_grilla >= 2
 
 
 def parse_fecha(s):
@@ -146,7 +177,12 @@ def parse_fecha(s):
         return None
 
 
+GRILLA = []
+
+
 def main():
+    global GRILLA
+    GRILLA = grilla_catamarca()
     carpeta = sys.argv[1] if len(sys.argv) > 1 else "datos"
     os.makedirs(carpeta, exist_ok=True)
     ruta_cache = os.path.join(carpeta, "cache.json")
@@ -213,11 +249,15 @@ def main():
                 continue
             if not afecta_catamarca(a):
                 continue
-            clave = (a["evento"], a["inicio"], a["fin"], tuple(a["areas"]))
+            clave = (a["evento"], a["nivel"], a["inicio"], a["fin"], json.dumps(a["poligonos"])[:200])
             if clave in vistos:
                 continue
             vistos.add(clave)
             a2 = {k: v for k, v in a.items() if k != "geocodes"}
+            locs, _ = localidades_afectadas(a)
+            a2["localidades"] = locs
+            if not a2["areas"]:
+                a2["areas"] = locs or ["Parte de la provincia de Catamarca"]
             resultado.append(a2)
 
     leidas = sum(1 for l in alertas_links if l in cache)
