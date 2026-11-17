@@ -1,0 +1,5 @@
+# Cloudflare Pages: que el navegador siempre verifique si hay una versión nueva
+/*
+  Cache-Control: public, max-age=0, must-revalidate
+/api/*
+  Cache-Control: no-store
